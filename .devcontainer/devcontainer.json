@@ -26,7 +26,13 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "bash -i scripts/postCreate.sh",
+	"postCreateCommand": [
+		"bash -i 'npm install -g typescript@4.4.3'",
+		"bash -i 'npm install -g yo generator-code'",
+		"bash -i 'git config --global user.name Chris Kader'",
+		"bash -i 'git config --global user.email chris.kader@gmail.com'",
+		"bash -i 'git config --global pull.rebase false'",
+	],
 
 	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "node"
