@@ -9,7 +9,9 @@
 		// Append -bullseye or -buster to pin to an OS version.
 		// Use -bullseye variants on local on arm64/Apple Silicon.
 		"args": { 
-			"VARIANT": "16"
+			"VARIANT": "16",
+			// set vscode arg for Dockerfile
+			"vscode": "true"
 		}
 	},
 
@@ -26,14 +28,17 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": [
-		"bash -i -c 'npm install -g typescript@4.4.3'",
-		"bash -i -c 'npm install -g yo generator-code'",
-		"bash -i -c 'git config --global user.name Chris Kader'",
+	"postStartCommand": [//"scripts/postStart.sh"
+		"npm config -g set progress=false",
+		" && ",
+		"bash -i -c 'git config --global user.name 'Chris Kader''",
+		" && ",
 		"bash -i -c 'git config --global user.email chris.kader@gmail.com'",
+		" && ",
 		"bash -i -c 'git config --global pull.rebase false'",
+		" && ",
+		"bash -i -c 'npm install -g yo generator-code'",
 	],
-
 	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "node"
 }
