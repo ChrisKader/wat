@@ -10,14 +10,99 @@
 		"Other"
 	],
 	"activationEvents": [
-        "onCommand:wat.helloWorld"
+		"workspaceContains:*.toc",
+		"onView:addonOutline",
+		"onLanguage:Toc",
+		"onLanguage:plaintext"
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
+		"languages": [
+			{
+			  "id": "toc",
+			  "extensions": [
+				".toc"
+			  ],
+			  "aliases": [
+				"Toc",
+				"TOC"
+			  ],
+			  "configuration": "./language-configuration.json"
+			}
+		  ],
+		  "grammars": [
+			{
+			  "language": "toc",
+			  "scopeName": "source.toc",
+			  "path": "./grammars/toc.tmLanguage.json"
+			}
+		  ],
+		  "snippets": [
+			{
+			  "language": "toc",
+			  "path": "./snippets/toc.json"
+			}
+		  ],
+		"views": {
+			"explorer": [
+				{
+					"id": "addonOutline",
+					"name": "WoW Addon Outline",
+					"when": "addonOutlineEnabled"
+				}
+			]
+		},
 		"commands": [
 			{
-				"command": "wat.helloWorld",
-				"title": "Hello World"
+				"command": "addonOutline.refresh",
+				"title": "Refresh",
+				"icon": {
+					"light": "resources/light/refresh.svg",
+					"dark": "resources/dark/refresh.svg"
+				}
+			},
+			{
+				"command": "addonOutline.refreshNode",
+				"title": "Refresh",
+				"icon": {
+					"light": "resources/light/refresh.svg",
+					"dark": "resources/dark/refresh.svg"
+				}
+			},
+			{
+				"command": "addonOutline.renameNode",
+				"title": "Rename"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "addonOutline.refresh",
+					"when": "view == addonOutline",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "addonOutline.renameNode",
+					"when": "view == addonOutline"
+				},
+				{
+					"command": "addonOutline.refreshNode",
+					"when": "view == addonOutline",
+					"group": "inline"
+				}
+			]
+		},
+		"configuration": [
+			{
+				"title": "WoW Addon Outline",
+				"properties": {
+					"addonOutline.autorefresh": {
+						"type": "boolean",
+						"default": false
+					}
+				}
 			}
 		]
 	},

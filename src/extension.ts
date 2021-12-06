@@ -1,6 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+/* import * as vscode from 'vscode';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -24,3 +24,23 @@ export function activate(context: vscode.ExtensionContext) {
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
+ */
+
+'use strict';
+
+import * as vscode from 'vscode';
+
+import { AddonOutlineProvider } from './addonOutline';
+
+export function activate(context: vscode.ExtensionContext) {
+	const rootPath = (vscode.workspace.workspaceFolders && (vscode.workspace.workspaceFolders.length > 0))
+		? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
+
+	const addonOutlineProvider = new AddonOutlineProvider(context);
+	vscode.window.registerTreeDataProvider('addonOutline', addonOutlineProvider);
+	vscode.commands.registerCommand('addonOutline.refresh', () => addonOutlineProvider.refresh());
+	vscode.commands.registerCommand('addonOutline.refreshNode', offset => addonOutlineProvider.refresh(offset));
+	vscode.commands.registerCommand('addonOutline.renameNode', offset => addonOutlineProvider.rename(offset));
+	vscode.commands.registerCommand('extension.openJsonSelection', range => addonOutlineProvider.select(range));
+
+}
