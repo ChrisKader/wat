@@ -4,6 +4,7 @@ import {
 	Event,
 	EventEmitter,
 	ExtensionContext,
+	FileDecoration,
 	ProviderResult,
 	Range,
 	Selection,
@@ -12,104 +13,209 @@ import {
 	TreeDataProvider,
 	TreeItem,
 	TreeItemCollapsibleState,
+	TreeItemLabel,
 	Uri,
 	window as Window,
+	workspace,
 	workspace as Workspace
 } from 'vscode';
 import * as path from 'path';
+import { timeStamp } from 'console';
+import { fstat } from 'fs';
 
 const regExList = {
-	toc: /(?:(?<line>^(?:^(?:## ?(?<metadata>(?<tagName>.+)(?:: )(?<tagValue>.+)))|^(?<file>[\S]+\.(?<ext>[a-z]+))|^(?:(?:# )?#(?<keywordEnd>@end[a-z-]+@))|^(?:(?:# )?#(?<keywordStart>@[a-z-]+@))|^(?<comment># (?<text>[\S ]+))))\n?|$(?<blankLine>[\n]))/gm
+	toc: {
+		lines: /^(?<line>.*?)$/gm,
+		metaData: /^## ?(?<tag>.+?): ?(?<value>[\S ]*?)$/gm,
+		files: /^(?<file>[\S]+\.(?<ext>[a-z]+))/gm,
+	},
+	toc1: /(?:(?<line>^(?:^(?:## ?(?<metadata>(?<tagName>.+)(?:: )(?<tagValue>[\S ]+)))|^(?:(?:# )?#(?<keywordEnd>@end[a-z-]+@))|^(?:(?:# )?#(?<keywordStart>@[a-z-]+@))|^(?<comment># ?(?<text>[\S ]+))|^(?<file>[\S]+\.(?<ext>[a-z]+))))\n?|$(?<blankLine>[\n]))/gm
 };
-export interface BaseObj {
-	[key: string]: string;
+//(^.*?$)
+//(?:^## ?(?<metadata>.+$))
+const headerFields = {
+	interface: [
+		{
+			toc: 'Interface',
+			friendly: 'Interface',
+		},
+		{
+			toc: 'Interface-Classic',
+			friendly: 'Interface Classic',
+		},
+		{
+			toc: 'Interface-BCC',
+			friendly: 'Interface BCC',
+		}
+	],
+	title: [
+		{
+			toc: 'Title',
+			friendly: 'Title',
+		}
+	],
+	author: [{
+		toc: 'Author',
+		friendly: 'Author',
+	}],
+	version: [{
+		toc: 'Version',
+		friendly: 'Version',
+	}],
+	loadOnDemand: [{
+		toc: 'Load On Demand',
+		friendly: 'Load On Demand',
+	}],
+	secure: [{
+		toc: 'Secure',
+		friendly: 'Secure',
+	}],
+	defaultState: [{
+		toc: 'Default State',
+		friendly: 'Default State',
+	}],
+	notes: [{
+		toc: 'Notes',
+		friendly: 'Notes',
+	}],
+	dependencies: [{
+		toc: 'Dependencies',
+		friendly: 'Dependencies',
+	}],
+	optionalDependencies: [{
+		toc: 'OptionalDeps',
+		friendly: 'Optional Dependencies',
+	}],
+	loadWith: [{
+		toc: 'LoadWith',
+		friendly: 'Load With',
+	}],
+	loadManagers: [{
+		toc: 'LoadManagers',
+		friendly: 'Load Managers',
+	}],
+	savedVariables: [{
+		toc: 'SavedVariables',
+		friendly: 'Saved Variables',
+	}],
+	savedVariablesPerCharacter: [{
+		toc: 'SavedVariabesPerChar',
+		friendly: 'Saved Variabes Per Character',
+	}],
+	files: [{
+		toc: 'Files',
+		friendly: 'Files',
+	}],
+};
+export class TocDataEntry extends Map{
+	
 }
-
 export class TocFile {
 
-    interfaceRetail= '';
-    interfaceClassic= '';
-    interfaceBcc= '';
-    title= '';
-    author= '';
-    version= '';
-    notes= <{[key:string]:string}>{};
-    dependencies= <string[]>[];
-    optionalDependencies= <string[]>[];
-    loadOnDemand= 0;
-    loadWith= <string[]>[];
-    loadManagers= <string[]>[];
-    savedVariables= <string[]>[];
-    savedVariablesPerCharacter= <string[]>[];
-    secure= 0;
-    defaultState= false;
-    thirdParty=<{[key:string]:string}>{};
-	files:string[] = [];
-	longLines:string[] = [];
-	textContents = '';
-	treeItems = {};
-	entryType = 'tocFile';
-	
+	tocData:Map<string,string> = new Map();
+
+		/* title: new Map(),
+		author: new Map(),
+		version: new Map(),
+		entryType: new Map(),
+		loadOnDemand: new Map(),
+		secure: new Map(),
+		defaultState: new Map(),
+		notes: new Map(),
+		thirdParty: new Map(),
+		dependencies: new Map(),
+		optionalDependencies: new Map(),
+		loadWith: new Map(),
+		loadManagers: new Map(),
+		savedVariables: new Map(),
+		savedVariablesPerCharacter: new Map(),
+		files: new Map(), */
+
+	lines = new Map();
+	addonFolder: string;
+	files = new Map();
 	constructor(
-		tocText: string
-	){
-		if(tocText.length > 0){
-			[...tocText.matchAll(regExList.toc)].map((v,i) => {
-				if(v.groups){
-					if(v.groups.line && v.groups.line.length > 0){
-						const tocLine:{
-                            [key: string]: string
-                        } = v.groups;
-						if(tocLine.line.length >= 1024){
-							this.longLines.push(v.groups.line);
-						}
-						if(tocLine.metadata){
-							if(tocLine.tagName && tocLine.tagValue && tocLine.tagValue.length > 0){
-								const tagName = tocLine.tagName;
-								const tagValue = tocLine.tagValue;
-								if(tagValue.length > 0){
-									if(tagName.indexOf('Interface') > -1){
-										if(tagName.indexOf('-') === -1){
-											this.interfaceRetail = tagValue;	
-										}else if(tagName.indexOf('-BCC') > -1){
-											this.interfaceBcc = tagValue;	
-										}else if(tagName.indexOf('-Classic') > -1){
-											this.interfaceClassic = tagValue;	
-										}
-									} else if(tagName === 'Title'){
-                                        let tName = tagName.toLowerCase()
-										this.title = tagValue;
-									} else if(tagName === 'Author'){
-										this.author = tagValue;
-									} else if(tagName === 'Version'){
-										this.version = tagValue;
-									} else if(tagName === 'LoadOnDemand'){
-										this.loadOnDemand = parseInt(tagValue);
-									} else if(tagName === 'DefaultState'){
-										this.defaultState = tagValue.toLowerCase() === 'enabled' ? true : false;
-									} else if(tagName.indexOf('Notes') === 0){
-										if(tagName.indexOf('-') === -1){
-											this.notes['enUS'] = tagValue;
-										} else {
-											this.notes[tagName.substring(tagName.indexOf('-') + 1)] = tagValue;
-										}
-									} else if(tagName === 'Dependencies' || tagName === 'OptionalDep' || tagName === 'LoadWith' || tagName.indexOf('SavedVariables') > -1 || tagName === 'LoadManagers'){
-										const tempName = tagName[0].toLowerCase() + tagName.substring(1);
-										Object.defineProperty(this,tempName, tagValue.split(",").map(v=>v.trim()));
-									} else if(tagName === 'Secure'){
-										this.secure = parseInt(tagValue);
-									} else {
-										this.thirdParty[tagName] = tagValue;
-									}
-								}
-							}
-						} else if(tocLine.file){
-							this.files.push(path.normalize(tocLine.file));
-						}
+		public tocUri: Uri,
+		public tocText: string,
+	) {
+		this.addonFolder = path.dirname(tocUri.fsPath);
+
+		[...tocText.matchAll(regExList.toc.lines)].map(v => v.groups?.line).map(tocLine => {
+			if(tocLine){
+				const metaDataArray = [...tocLine.matchAll(regExList.toc.metaData)];
+				if(metaDataArray.length > 0){
+					metaDataArray.filter(v => Object.keys(v.groups!).length > 0).map(v => {
+						if(v.groups){
+							this.tocData.set(v.groups.tag,v.groups.value);
+						};
+					});
+				} else {
+					const fileArray = [...tocLine.matchAll(regExList.toc.files)];
+					if(fileArray.length > 0){
+						fileArray.filter(v => Object.keys(v.groups!).length > 0).map(v => {
+							if(v.groups){
+								this.files.set(this.files.size + 1,v.groups.file);
+							};
+						});
 					}
 				}
-			})[0];
-		}
+			}
+		});
+/* 		.reduce((tocObj, currentMatch) => {
+			if (currentMatch.groups) {
+				if (currentMatch.groups.line && currentMatch.groups.line.length > 0) {
+					const tocLine = currentMatch.groups;
+					this.lines.set((this.lines.size + 1).toString(), tocLine.line);
+					if (tocLine.metadata) {
+						if (tocLine.tagName && tocLine.tagValue && tocLine.tagValue.length > 0) {
+							const tagName = tocLine.tagName;
+							const tagValue = tocLine.tagValue;
+							if (tagValue.length > 0) {
+								if (tagName.indexOf('Interface') > -1) {
+									if (tagName.indexOf('-') === -1) {
+										this.interfaceRetail = tagValue;
+									} else if (tagName.indexOf('-BCC') > -1) {
+										this.interfaceBcc = tagValue;
+									} else if (tagName.indexOf('-Classic') > -1) {
+										this.interfaceClassic = tagValue;
+									}
+								} else if (tagName === 'Title') {
+									let tName = tagName.toLowerCase();
+									this.title = tagValue;
+								} else if (tagName === 'Author') {
+									this.author = tagValue;
+								} else if (tagName === 'Version') {
+									this.version = tagValue;
+								} else if (tagName === 'LoadOnDemand') {
+									this.loadOnDemand = tagValue;
+								} else if (tagName === 'DefaultState') {
+									this.defaultState = tagValue;
+								} else if (tagName.indexOf('Notes') === 0) {
+									if (tagName.indexOf('-') === -1) {
+										this.notes['enUS'] = tagValue;
+									} else {
+										this.notes[tagName.substring(tagName.indexOf('-') + 1)] = tagValue;
+									}
+								} else if (tagName === 'Dependencies' || tagName === 'OptionalDep' || tagName === 'LoadWith' || tagName.indexOf('SavedVariables') > -1 || tagName === 'LoadManagers') {
+									const tempName = tagName[0].toLowerCase() + tagName.substring(1);
+									Object.defineProperty(this, tempName, tagValue.split(",").map(v => v.trim()));
+								} else if (tagName === 'Secure') {
+									this.secure = tagValue;
+								} else {
+									this.thirdParty[tagName] = tagValue;
+								}
+							}
+						}
+					} else if (tocLine.file) {
+						this.files.push(tocLine.file);
+					}
+				}
+			}
+			return tocObj;
+		}, {});
+		if (this.title.length === 0) {
+			this.title = this.addonFolder.substring(this.addonFolder.lastIndexOf('/') + 1 || this.addonFolder.lastIndexOf('\\') + 1);
+		} */
 	}
 }
 
@@ -118,163 +224,171 @@ export interface Entry {
 	name: string;
 	index: number;
 }
-export class OutlineEntry extends TreeItem {
-	constructor(
-		public readonly label: string,
-		public readonly secondText: string,
-		private readonly version: string,
-		public readonly collapsibleState: TreeItemCollapsibleState,
-		public readonly command?: Command
-	) {
-		super(label, collapsibleState);
 
-		this.tooltip = `${this.label}-${this.version}`;
-		this.description = this.version;
+export class AddonOutlineField extends TreeItem {
+	children: AddonOutlineField[] = [];
+	uri?: Uri;
+	constructor(
+		label: string | TreeItemLabel,
+		description: string | boolean,
+		children?: Map<string,string>,
+		excludeDescription?: boolean
+	){
+		super('');
+		this.label = label;
+		this.description = description;
+		if(children){
+			for(let child of children){
+				this.children.push(new AddonOutlineField(
+					excludeDescription? child[1] : child[0],
+					excludeDescription ? false : child[1],
+				));
+				this.collapsibleState = TreeItemCollapsibleState.Collapsed;
+			}
+		} else {
+			this.collapsibleState = TreeItemCollapsibleState.None;
+		}
+	}
+	iconPath = {
+		light: path.join(__dirname, 'dist','resources', 'light', 'dependency.svg'),
+		dark: path.join(__dirname, 'dist','resources', 'dark', 'dependency.svg')
+	};
+}
+
+export class AddonOutline extends TreeItem {
+	children: AddonOutlineField[] = [];
+	uri?: Uri;
+	constructor(
+		tocFile: TocFile,
+	) {
+		super('');
+		this.uri = tocFile.tocUri;
+		const tocFilename = path.basename(tocFile.tocUri.toString());
+		this.label = tocFile.tocData.get("Title") || tocFilename.substring(0,tocFilename.length - 4);
+		this.collapsibleState = TreeItemCollapsibleState.Collapsed;
+		const fieldKeys = [...tocFile.tocData.keys()];
+		let keysCompleted = new Map();
+		for(let field of tocFile.tocData){
+			if(keysCompleted.has(field[0]) === false){
+				const similarFields = fieldKeys.filter(k => {
+					return ((keysCompleted.has(k) === false) && k.toLowerCase().indexOf(field[0].toLowerCase()) > -1);
+				});
+				const similarFieldsMap = new Map();
+				if(similarFields.length > 1){
+					similarFields.map(f => {
+						similarFieldsMap.set(f,tocFile.tocData.get(f));
+						keysCompleted.set(f,f);
+					});
+				}
+				this.children.push(new AddonOutlineField(
+					field[0],
+					similarFields.length > 1 ? similarFields.length.toString() : field[1],
+					similarFields.length > 1 ? similarFieldsMap : undefined
+				));
+			}
+		}
+		this.children.push(new AddonOutlineField(
+			'Files',
+			tocFile.files.size.toString(),
+			tocFile.files,
+			true
+		))
 	}
 
 	iconPath = {
-		light: path.join(__filename, '..', '..', 'resources', 'light', 'dependency.svg'),
-		dark: path.join(__filename, '..', '..', 'resources', 'dark', 'dependency.svg')
+		light: path.join(__dirname,'..','resources', 'light', 'dependency.svg'),
+		dark: path.join(__dirname, '..','resources', 'dark', 'dependency.svg')
 	};
-
-	contextValue = 'dependency';
 }
-export class AddonOutlineProvider implements TreeDataProvider<OutlineEntry> {
 
-	private _onDidChangeTreeData: EventEmitter<OutlineEntry | null> = new EventEmitter<OutlineEntry | null>();
-	readonly onDidChangeTreeData: Event<OutlineEntry | null> = this._onDidChangeTreeData.event;
+export class AddonOutlineProvider implements TreeDataProvider<AddonOutline> {
+
+	private _onDidChangeTreeData: EventEmitter<AddonOutline | undefined | null | void> = new EventEmitter<AddonOutline | undefined | null | void>();
+	readonly onDidChangeTreeData: Event<AddonOutline | undefined | null | void> = this._onDidChangeTreeData.event;
 
 	//private tree: json.Node;
-	private tree?: {
-		tocFile?: TocFile,
-		entries: Entry[]
-	};
 	private editor: TextEditor;
-	private autoRefresh = true;
-	private tocFile?: TocFile;
-	private entries: Entry[];
+	private tocFiles:Map<string,TocFile> = new Map();
 
-	constructor(private context: ExtensionContext) {
-        this.editor = Window.activeTextEditor!;
-        this.entries = [];
-		Workspace.findFiles('*.toc',null,1).then(tocUri => {
-			if(tocUri.length > 0){
-				Workspace.fs.readFile(tocUri[0]).then(v=>{
-					this.tocFile = new TocFile(v.toString());
-					this.tocFile;
-				});
-			}
-		}).then((v)=>{
-			Window.onDidChangeActiveTextEditor(() => this.onActiveEditorChanged());
-			Workspace.onDidChangeTextDocument(e => this.onDocumentChanged(e));
-			this.autoRefresh = Workspace.getConfiguration('addonOutline').get('autorefresh')!;
-			Workspace.onDidChangeConfiguration(() => {
-				this.autoRefresh = Workspace.getConfiguration('addonOutline').get('autorefresh')!;
-			});
-			this.onActiveEditorChanged();
-		});
-	
+	private addTocFile(tocFile: TocFile) {
+		this.tocFiles.set(tocFile.tocUri.toString(),tocFile);
+		this.refresh(tocFile.tocUri);
 	}
 
-	refresh(offset?: number): void {
-		this.parseTree();
-		this._onDidChangeTreeData.fire(null);
+	constructor(private context: ExtensionContext) {
+		this.editor = Window.activeTextEditor!;
+		Workspace.findFiles('**/*.toc', null).then(tocUris => {
+			tocUris.map(tocUri => {
+				Workspace.fs.readFile(tocUri).then(tocFileContents => {
+					let newTocEntry = new TocFile(tocUri, tocFileContents.toString());
+					this.addTocFile(newTocEntry);
+				}, reason => {
+					throw Error(reason);
+				});
+			});
+		});
+		Window.onDidChangeActiveTextEditor(() => this.refresh());
+		//Workspace.onDidChangeTextDocument(e => this.onDocumentChanged(e));
+		this.refresh();
+
+	}
+
+	refresh(tocUriStr?: Uri): void {
+		if (tocUriStr) {
+			//console.log(`${tocUriStr} added!`);
+		}
+		this._onDidChangeTreeData.fire();
 	}
 
 	rename(offset: number): void {
 		Window.showInputBox({ placeHolder: 'Enter the new label' })
 			.then(value => {
 				if (value !== null && value !== undefined) {
-					this.editor.edit(editBuilder => {
-						/* const path = json.getLocation(this.text, offset).path;
-						let propertyNode = json.findNodeAtLocation(this.tree, path);
-						if (propertyNode.parent.type !== 'array') {
-							propertyNode = propertyNode.parent.children[0];
-						}
-						const range = new Range(this.editor.document.positionAt(propertyNode.offset), this.editor.document.positionAt(propertyNode.offset + propertyNode.length));
-						editBuilder.replace(range, `"${value}"`);
-						setTimeout(() => {
-							this.parseTree();
-							this.refresh(offset);
-						}, 100); */
-					});
 				}
 			});
 	}
 
-	private onActiveEditorChanged(): void {
-		if (Window.activeTextEditor) {
-			if (Window.activeTextEditor.document.uri.scheme === 'file') {
-				const enabled = Window.activeTextEditor.document.languageId === 'plaintext' || Window.activeTextEditor.document.languageId === 'toc';
-				Commands.executeCommand('setContext', 'addonOutlineEnabled', enabled);
-				if (enabled) {
-					this.refresh();
-				}
-			}
-		} else {
-			Commands.executeCommand('setContext', 'addonOutlineEnabled', false);
+	getChildren(element?: AddonOutline): Thenable<AddonOutline[]> {
+		/*
+		'single'
+		'keyedObj'
+		'stringArray'
+		*/
+		if(element && element.children.length > 0) {
+			return Promise.resolve(element.children);
 		}
+		return Promise.resolve([...this.tocFiles.values()].map((tocFile)=>{
+			return new AddonOutline(tocFile);
+		}));
+		//{ command: 'vscode.open', title: "Open File", arguments: [Uri.file(filePath)] },
 	}
 
-	private onDocumentChanged(changeEvent: TextDocumentChangeEvent): void {
-		if (this.autoRefresh && changeEvent.document?.uri.toString() === this.editor.document.uri.toString()) {
-			this._onDidChangeTreeData.fire(null);
-		}
-	}
-
-	private parseTree(): void {
-		this.editor = Window.activeTextEditor!;
-		if (this.editor && this.editor.document) {
-			//this.text = this.editor.document.getText();
-			this.tree = {
-                tocFile: this.tocFile,
-                entries: this.entries
-            };
-		}
-	}
-
-	getChildren(element?: OutlineEntry): Thenable<OutlineEntry[]> {
-        return Promise.resolve([new OutlineEntry(
-            'Addon Name',this.tocFile!.title,'1',TreeItemCollapsibleState.None
-        )]);
-	}
-
-/* 	private getChildrenOffsets(node: json.Node): number[] {
-		const offsets: number[] = [];
-		for (const child of node.children) {
-			const childPath = json.getLocation(this.text, child.offset).path;
-			const childNode = json.findNodeAtLocation(this.tree, childPath);
-			if (childNode) {
-				offsets.push(childNode.offset);
-			}
-		}
-		return offsets;
+	/* getParent(element: AddonOutline): ProviderResult<AddonOutline> {
+		return new AddonOutline(
+			'Title',
+			currentToc.title,
+			TreeItemCollapsibleState.Collapsed
+		);
 	} */
-	getParent(element: OutlineEntry): ProviderResult<OutlineEntry> {
-        if(this.tocFile){
-            return new OutlineEntry(this.tocFile.title,this.tocFile.author,this.tocFile.version,TreeItemCollapsibleState.Expanded);
-        }
-	}
 
-	getTreeItem(element: OutlineEntry): TreeItem {
-        element.description = element.secondText
+	getTreeItem(element: AddonOutline): TreeItem {
 		return element;
 
-/* 		const path = json.getLocation(this.text, offset).path;
-		const valueNode = json.findNodeAtLocation(this.tree, path);
-		if (valueNode) {
-			const hasChildren = valueNode.type === 'object' || valueNode.type === 'array';
-			const treeItem: TreeItem = new TreeItem(this.getLabel(valueNode), hasChildren ? valueNode.type === 'object' ? TreeItemCollapsibleState.Expanded : TreeItemCollapsibleState.Collapsed : TreeItemCollapsibleState.None);
-			treeItem.command = {
-				command: 'extension.openJsonSelection',
-				title: '',
-				arguments: [new Range(this.editor.document.positionAt(valueNode.offset), this.editor.document.positionAt(valueNode.offset + valueNode.length))]
-			};
-			treeItem.iconPath = this.getIcon(valueNode);
-			treeItem.contextValue = valueNode.type;
-			return treeItem;
-		}
-		return null; */
+		/* 		const path = json.getLocation(this.text, offset).path;
+				const valueNode = json.findNodeAtLocation(this.tree, path);
+				if (valueNode) {
+					const hasChildren = valueNode.type === 'object' || valueNode.type === 'array';
+					const treeItem: TreeItem = new TreeItem(this.getLabel(valueNode), hasChildren ? valueNode.type === 'object' ? TreeItemCollapsibleState.Expanded : TreeItemCollapsibleState.Collapsed : TreeItemCollapsibleState.None);
+					treeItem.command = {
+						command: 'extension.openJsonSelection',
+						title: '',
+						arguments: [new Range(this.editor.document.positionAt(valueNode.offset), this.editor.document.positionAt(valueNode.offset + valueNode.length))]
+					};
+					treeItem.iconPath = this.getIcon(valueNode);
+					treeItem.contextValue = valueNode.type;
+					return treeItem;
+				}
+				return null; */
 	}
 
 	select(range: Range) {
