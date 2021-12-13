@@ -61,7 +61,7 @@
 			}
 		],
 		"views": {
-			"explorer": [
+			"addonOutline": [
 				{
 					"id": "addonOutline",
 					"name": "WoW Addon Outline"
@@ -72,22 +72,20 @@
 			{
 				"command": "addonOutline.refresh",
 				"title": "Refresh",
-				"icon": {
-					"light": "resources/light/refresh.svg",
-					"dark": "resources/dark/refresh.svg"
-				}
+				"icon": "$(timeline-refresh)"
 			},
 			{
 				"command": "addonOutline.refreshNode",
 				"title": "Refresh",
-				"icon": {
-					"light": "./resources/light/refresh.svg",
-					"dark": "./resources/dark/refresh.svg"
-				}
+				"icon": "$(timeline-refresh)"
 			},
 			{
 				"command": "addonOutline.renameNode",
 				"title": "Rename"
+			},
+			{
+				"command": "addonOutline.openFile",
+				"title": "Open File"
 			}
 		],
 		"menus": {
@@ -99,6 +97,10 @@
 				}
 			],
 			"view/item/context": [
+				{
+					"command": "addonOutline.openFile",
+					"when": "viewItem == file"
+				},
 				{
 					"command": "addonOutline.renameNode",
 					"when": "view == addonOutline"
@@ -122,11 +124,11 @@
 			}
 		],
 		"viewsContainers": {
-			"panel": [
+			"activitybar": [
 			  {
 				"id": "addonOutline",
 				"title": "Addon Outline",
-				"icon": "resources/dark/dependency.svg"
+				"icon": "$(testing-show-as-list-icon)"
 			  }
 			]
 		  }

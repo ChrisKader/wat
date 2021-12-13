@@ -14,6 +14,7 @@ export function activate(context: ExtensionContext) {
 	const view = Window.createTreeView('addonOutline',{treeDataProvider: addonOutlineProvider});
 	context.subscriptions.push(view);
 	Commands.registerCommand('addonOutline.refresh', () => addonOutlineProvider.refresh());
+	Commands.registerCommand('addonOutline.openFile', (s) => addonOutlineProvider.openFile(s));
 	Commands.registerCommand('addonOutline.refreshNode', offset => addonOutlineProvider.refresh(offset));
 	Commands.registerCommand('addonOutline.renameNode', offset => addonOutlineProvider.rename(offset));
 	Commands.registerCommand('extension.openJsonSelection', range => addonOutlineProvider.select(range));
