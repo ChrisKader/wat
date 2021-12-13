@@ -1,21 +1,41 @@
-'use strict';
+import { Model } from './model';
+import { Event, EventEmitter } from 'vscode';
 
-import {
-	window as Window,
-	commands as Commands,
-	ExtensionContext
-} from 'vscode';
+export interface WatExtension {
+    readonly enabled: boolean;
+    readonly onDidChangeEnablement: Event<boolean>;
+}
 
-import { AddonOutlineProvider } from './addonOutline';
+export class WatExtensionImpl implements WatExtension {
 
-export function activate(context: ExtensionContext) {
+    enabled: boolean = false;
 
-	const addonOutlineProvider = new AddonOutlineProvider(context);
-	const view = Window.createTreeView('addonOutline',{treeDataProvider: addonOutlineProvider});
-	context.subscriptions.push(view);
-	Commands.registerCommand('addonOutline.refresh', () => addonOutlineProvider.refresh());
-	Commands.registerCommand('addonOutline.openFile', (s) => addonOutlineProvider.openFile(s));
-	Commands.registerCommand('addonOutline.refreshNode', offset => addonOutlineProvider.refresh(offset));
-	Commands.registerCommand('addonOutline.renameNode', offset => addonOutlineProvider.rename(offset));
-	Commands.registerCommand('extension.openJsonSelection', range => addonOutlineProvider.select(range));
+    private _onDidChangeEnablement = new EventEmitter<boolean>();
+    readonly onDidChangeEnablement: Event<boolean> = this._onDidChangeEnablement.event;
+
+    private _model: Model | undefined = undefined;
+
+    set model(model: Model | undefined) {
+        this._model = model;
+
+        const enabled = !!model;
+
+        if (this.enabled === enabled) {
+            return;
+        }
+
+        this.enabled = enabled;
+        this._onDidChangeEnablement.fire(this.enabled);
+    }
+
+    get model(): Model | undefined {
+        return this._model;
+    }
+
+    constructor(model?: Model) {
+        if (model) {
+            this.enabled = true;
+            this._model = model;
+        }
+    }
 }

@@ -10,9 +10,12 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onStartupFinished"
+		"onView:addonOutline"
 	],
-	"extensionKind": ["workspace", "ui"],
+	"extensionKind": [
+		"workspace",
+		"ui"
+	],
 	"main": "./dist/extension.js",
 	"contributes": {
 		"languages": [
@@ -125,13 +128,13 @@
 		],
 		"viewsContainers": {
 			"activitybar": [
-			  {
-				"id": "addonOutline",
-				"title": "Addon Outline",
-				"icon": "$(testing-show-as-list-icon)"
-			  }
+				{
+					"id": "addonOutline",
+					"title": "Addon Outline",
+					"icon": "$(testing-show-as-list-icon)"
+				}
 			]
-		  }
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",
@@ -162,5 +165,10 @@
 		"typescript": "^4.4.4",
 		"webpack": "^5.52.1",
 		"webpack-cli": "^4.8.0"
+	},
+	"dependencies": {
+		"@types/byline": "^4.2.33",
+		"byline": "^5.0.0",
+		"vscode-nls": "^5.0.0"
 	}
 }
