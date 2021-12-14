@@ -10,13 +10,13 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onView:addonOutline"
+		"onView:watTree"
 	],
 	"extensionKind": [
 		"workspace",
 		"ui"
 	],
-	"main": "./dist/extension.js",
+	"main": "./dist/main.js",
 	"contributes": {
 		"languages": [
 			{
@@ -64,53 +64,57 @@
 			}
 		],
 		"views": {
-			"addonOutline": [
+			"watTree": [
 				{
-					"id": "addonOutline",
+					"id": "watTree",
 					"name": "WoW Addon Outline"
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "addonOutline.refresh",
+				"command": "watTree.refresh",
 				"title": "Refresh",
 				"icon": "$(timeline-refresh)"
 			},
 			{
-				"command": "addonOutline.refreshNode",
+				"command": "watTree.refreshNode",
 				"title": "Refresh",
 				"icon": "$(timeline-refresh)"
 			},
 			{
-				"command": "addonOutline.renameNode",
+				"command": "watTree.renameNode",
 				"title": "Rename"
 			},
 			{
-				"command": "addonOutline.openFile",
+				"command": "watTree.openFile",
 				"title": "Open File"
+			},
+			{
+				"command": "wat.createAddon",
+				"title": "Create Addon"
 			}
 		],
 		"menus": {
 			"view/title": [
 				{
-					"command": "addonOutline.refresh",
-					"when": "view == addonOutline",
+					"command": "watTree.refresh",
+					"when": "view == watTree",
 					"group": "navigation"
 				}
 			],
 			"view/item/context": [
 				{
-					"command": "addonOutline.openFile",
+					"command": "watTree.openFile",
 					"when": "viewItem == file"
 				},
 				{
-					"command": "addonOutline.renameNode",
-					"when": "view == addonOutline"
+					"command": "watTree.renameNode",
+					"when": "view == watTree"
 				},
 				{
-					"command": "addonOutline.refreshNode",
-					"when": "view == addonOutline",
+					"command": "watTree.refreshNode",
+					"when": "view == watTree",
 					"group": "inline"
 				}
 			]
@@ -119,7 +123,7 @@
 			{
 				"title": "WoW Addon Outline",
 				"properties": {
-					"addonOutline.autorefresh": {
+					"watTree.autorefresh": {
 						"type": "boolean",
 						"default": false
 					}
@@ -129,12 +133,19 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "addonOutline",
+					"id": "watTree",
 					"title": "Addon Outline",
 					"icon": "$(testing-show-as-list-icon)"
 				}
 			]
-		}
+		},
+		"viewsWelcome": [
+			{
+			  "view": "watTree",
+			  "contents": "In order to use WoW Addon Tool's features, you can open a folder containing a TOC file or create an addon from a template.\n[Open Folder](command:vscode.openFolder)\n[Create Addon](command:wat.createAddon)\n",
+			  "when": "workbenchState == empty"
+			}
+		  ]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",
@@ -169,6 +180,7 @@
 	"dependencies": {
 		"@types/byline": "^4.2.33",
 		"byline": "^5.0.0",
-		"vscode-nls": "^5.0.0"
+		"vscode-nls": "^5.0.0",
+		"vscode-nls-dev": "^3.3.2"
 	}
 }

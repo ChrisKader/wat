@@ -1,8 +1,9 @@
-import { commands, Disposable, OutputChannel } from 'vscode';
+import { rename, renameSync,rm } from 'fs';
+import { readdir, readFile, writeFile } from 'fs/promises';
+import path = require('path');
+import { commands, Disposable, OutputChannel, window, Uri } from 'vscode';
 import { Model } from './model';
-import * as nls from 'vscode-nls';
 import { logTimestamp } from './util';
-const localize = nls.loadMessageBundle();
 interface WatCommandOptions {
     uri?: boolean;
 }
@@ -39,6 +40,48 @@ export class CommandCenter {
 
             return commands.registerCommand(commandId, command);
         });
+    }
+
+    @command('wat.createAddon')
+    async createAddon(){
+        window.showInputBox({title: 'Addon Name',placeHolder: 'Choose wisely! This will also be the folder name.'}).then(addonName => {
+            if(addonName){
+                window.showOpenDialog({canSelectFiles: false, canSelectFolders: true, canSelectMany: false}).then(rootFolder => {
+                    if(rootFolder){
+                        console.log(rootFolder)
+                        commands.executeCommand('git.clone','https://github.com/ChrisKader/wow-addon-template',rootFolder[0].path).then(()=>{
+                            rename(path.join(rootFolder[0].path,'wow-addon-template'),path.join(rootFolder[0].path,addonName),()=>{
+                                const defaultPath = path.join(rootFolder[0].path,addonName)
+                                rm(path.join(defaultPath,'.git'),()=>{
+                                    rename(path.join(defaultPath,'Addon'),path.join(defaultPath,addonName),()=>{
+                                        readFile(path.join(defaultPath,addonName,'Addon.toc')).then(v=>{
+                                            const newFileContent = v.toString().replace(/\@addon-name@/gm,addonName)
+                                            writeFile(path.join(defaultPath,addonName,addonName + '.toc'),newFileContent).then(()=>{
+                                                readFile(path.join(defaultPath,addonName,'Addon.lua')).then(v=>{
+                                                    const newFileContent = v.toString().replace(/\@addon-name@/gm,addonName)
+                                                    writeFile(path.join(defaultPath,addonName,addonName + '.lua'),newFileContent).then(()=>{
+                                                        readFile(path.join(defaultPath,'pkgmeta.yaml')).then(v=>{
+                                                            const newFileContent = v.toString().replace(/\@addon-name@/gm,addonName)
+                                                            writeFile(path.join(defaultPath,'pkgmeta.yaml'),newFileContent).then(()=>{
+                                                                rm(path.join(defaultPath,addonName,'Addon.toc'),()=>{
+                                                                    rm(path.join(defaultPath,addonName,'Addon.lua'),()=>{
+                                                                        commands.executeCommand('vscode.openFolder',Uri.file(path.join(defaultPath)))
+                                                                    })
+                                                                })
+                                                            })
+                                                        })
+                                                    })
+                                                })
+                                            })
+                                        })
+                                    })
+                                })
+                            })
+                        })
+                    }
+                })
+            }
+        })
     }
 
     @command('wat.test')

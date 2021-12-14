@@ -1,86 +1,60 @@
 import { window as Window, workspace as Workspace, Uri, Disposable, Event, EventEmitter, FileDecoration, FileDecorationProvider, ThemeColor, } from 'vscode';
 import { Model } from './model';
-import { TocOutline, TocOutlineProvider, TocFile } from './tocOutline';
-import { filterEvent, dispose, anyEvent, fireEvent, PromiseSource } from './util';
+import { TocOutline} from './tocOutline';
+import { dispose } from './util';
 
 
-class UnknownTocFileProvider implements FileDecorationProvider {
-    private static unknownTocFileDecoration: FileDecoration = {
-        badge: 'M',
-        color: new ThemeColor('problemsErrorIcon.foreground')
-    };
+class WatDecorationProvider implements FileDecorationProvider {
 
-    readonly onDidChangeFileDecorations: Event<Uri[]>;
+	private static MissingFileDecorationData: FileDecoration = {
+		tooltip: 'Missing',
+		color: new ThemeColor('problemsErrorIcon.foreground'),
+        propagate: true,
+	};
 
-    private queue = new Map<string, { tocFile: TocFile; queue: Map<string, PromiseSource<FileDecoration | undefined>>; }>();
-    private disposables: Disposable[] = [];
+	private readonly _onDidChangeFileDecorations = new EventEmitter<Uri[]>();
+	readonly onDidChangeFileDecorations: Event<Uri[]> = this._onDidChangeFileDecorations.event;
 
-    constructor(private addonOutline: TocOutline) {
-        this.onDidChangeFileDecorations = fireEvent(anyEvent<any>(
-            filterEvent(Workspace.onDidOpenTextDocument, e => addonOutline.tocFile.checkMissingFile(e.uri.fsPath)),
-            addonOutline.tocFile.onNewMissingFile,
-        ));
+	private disposables: Disposable[] = [];
+	private decorations = new Map<string, FileDecoration>();
 
-        this.disposables.push(Window.registerFileDecorationProvider(this));
-        console.log(`File Dec for ${addonOutline.tocFile.tocUri.fsPath} added!`);
-    }
+	constructor(private tocOutline: TocOutline) {
+        console.log(`decorationsProvider.ts > WatDecorationProvider > constructor`)
+		this.disposables.push(
+			Window.registerFileDecorationProvider(this),
+			tocOutline.tocFile.onNewMissingFile( e => this.onNewMissingFile(e),this)
+		);
+	}
 
-    async provideFileDecoration(uri: Uri): Promise<FileDecoration | undefined> {
-        const tocFile = this.addonOutline.tocFile;
+	private onNewMissingFile(uri: Uri[]): void {
+        console.log(`${uri}`)
+        console.log(`decorationsProvider.ts > WatDecorationProvider > onNewMissingFile`)
+		let newDecorations = new Map<string, FileDecoration>();
+        this.collectDecorationData(this.tocOutline, newDecorations);
 
-        if (!tocFile) {
-            return;
+		const uris = new Set([...this.decorations.keys()].concat([...newDecorations.keys()]));
+		this.decorations = newDecorations;
+		this._onDidChangeFileDecorations.fire([...uris.values()].map(value => Uri.parse(value, true)));
+	}
+
+ 	private collectDecorationData(tocOutline: TocOutline, bucket: Map<string, FileDecoration>): void {
+		for (const r of tocOutline.tocFile.getMissingFiles()) {
+			const decoration = WatDecorationProvider.MissingFileDecorationData
+            bucket.set(r[1].fsPath.toString(), decoration);
+		}
+	}
+
+	async provideFileDecoration(uri: Uri): Promise<FileDecoration | undefined> {
+        if(await this.tocOutline.tocFile.checkMissingFile(uri.fsPath)){
+            console.log(`decorationsProvider.ts > WatDecorationProvider > provideFileDecoration ${uri} ${uri.fsPath}`)
+            return WatDecorationProvider.MissingFileDecorationData
         }
+		return this.decorations.get(uri.toString());
+	}
 
-        let queueItem = this.queue.get(tocFile.tocUri.fsPath);
-
-        if (!queueItem) {
-            queueItem = { tocFile, queue: new Map<string, PromiseSource<FileDecoration | undefined>>() };
-            this.queue.set(tocFile.tocUri.fsPath, queueItem);
-        }
-
-        let promiseSource = queueItem.queue.get(uri.fsPath);
-
-        if (!promiseSource) {
-            promiseSource = new PromiseSource();
-            queueItem!.queue.set(uri.fsPath, promiseSource);
-            this.checkIgnoreSoon();
-        }
-
-        return await promiseSource.promise;
-    }
-
-    /* @debounce(500) */
-    private checkIgnoreSoon(): void {
-        const queue = new Map(this.queue.entries());
-        this.queue.clear();
-
-        for (const [, item] of queue) {
-            const paths = [...item.queue.keys()];
-
-            item.tocFile.checkMissingFiles(paths).then(missingFileSet => {
-                for (const [path, promiseSource] of item.queue.entries()) {
-                    if (missingFileSet.has(path)){
-                        console.log(`Sending decorator for ${path}`);
-                        promiseSource.resolve(UnknownTocFileProvider.unknownTocFileDecoration);
-                    } else {
-                        promiseSource.resolve(undefined);
-                    }
-                }
-            }, err => {
-                console.error(err);
-
-                for (const [, promiseSource] of item.queue.entries()) {
-                    promiseSource.reject(err);
-                }
-            });
-        }
-    }
-
-    dispose(): void {
-        this.disposables.forEach(d => d.dispose());
-        this.queue.clear();
-    }
+	dispose(): void {
+		this.disposables.forEach(d => d.dispose());
+	}
 }
 
 export class WatDecorations {
@@ -90,7 +64,9 @@ export class WatDecorations {
     private providers = new Map<TocOutline, Disposable>();
 
     constructor(private model: Model) {
-        //this.addonOutlineProvider.getAddonOutlines().forEach(a=>this.disposables.push(new UnknownTocFileProvider(a!)));
+        console.log('decorationsProvider.ts > WatDecorations > constructor')
+        //model.tocs.forEach(a=>this.disposables.push(new UnknownTocFileProvider(a!)))
+        //this.watTreeProvider.getAddonOutlines().forEach(a=>this.disposables.push(new UnknownTocFileProvider(a!)));
 
         //const onEnablementChange = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git.decorations.enabled'));
         //onEnablementChange(this.update, this, this.disposables);
@@ -99,6 +75,7 @@ export class WatDecorations {
 
     private update(): void {
         /* const enabled = workspace.getConfiguration('git').get('decorations.enabled'); */
+        console.log('decorationsProvider.ts > WatDecorations > update')
         this.enable();
 /*         if (enabled) {
             this.enable();
@@ -108,7 +85,8 @@ export class WatDecorations {
     }
 
     private enable(): void {
-        //this.addonOutlineProvider.onCreateAddonOutline(this.onDidCreateAddonOutline, this, this.modelDisposables);
+        console.log('decorationsProvider.ts > WatDecorations > enable')
+        this.model.onDidOpenTocFile(this.onDidOpenTocOutline, this, this.modelDisposables);
     }
 
     private disable(): void {
@@ -117,17 +95,18 @@ export class WatDecorations {
         this.providers.clear();
     }
 
-    private onDidCreateAddonOutline(addonOutline: TocOutline): void {
-        const provider = new UnknownTocFileProvider(addonOutline);
-        this.providers.set(addonOutline, provider);
+    private onDidOpenTocOutline(tocOutline: TocOutline): void {
+        console.log(`decorationsProvider.ts > WatDecorations > onDidOpenTocOutline > ${tocOutline.tocFile.tocUri}`)
+        const provider = new WatDecorationProvider(tocOutline);
+        this.providers.set(tocOutline, provider);
     }
 
-/*     private onDidCloseRepository(addonOutlineProvider: AddonOutlineProvider): void {
-        const provider = this.providers.get(addonOutlineProvider);
+/*     private onDidCloseRepository(watTreeProvider: AddonOutlineProvider): void {
+        const provider = this.providers.get(watTreeProvider);
 
         if (provider) {
             provider.dispose();
-            this.providers.delete(addonOutline);
+            this.providers.delete(watTree);
         }
     } */
 

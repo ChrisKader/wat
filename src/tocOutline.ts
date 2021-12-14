@@ -47,6 +47,7 @@ export class TocFile {
 	constructor(
 		public tocUri: Uri,
 		public tocText: string,
+		private tocOutline: TocOutline
 	) {
 		this.addonFolder = Uri.from({
 			scheme: 'file',
@@ -82,13 +83,18 @@ export class TocFile {
 
 		this.addonTitle = this.tocData.get("Title") || Basename(this.tocUri.toString()).substring(0, Basename(this.tocUri.toString()).length - 4);
 	}
-
-	addMissingFiles(uris: Uri[]){
-		this._onNewMissingFile.fire(uris.map(u =>{
-			console.log(`Adding ${u.fsPath}`);
+	getMissingFiles(){
+		return this.missingFiles.entries()
+	}
+	async addMissingFiles(uris: Uri[]){
+		const rtnVal:Uri[] =  []
+		uris.map(u =>{
+			console.log(`tocOutline.ts > TocFile > addMissingFiles ${u}`);
 			this.missingFiles.set(u.fsPath.toLowerCase(), u);
-			return this.missingFiles.get(u.fsPath.toLowerCase())!;
-		}));
+			rtnVal.push(this.missingFiles.get(u.fsPath.toLowerCase())!);
+		})
+		console.log(`tocOutline.ts > TocFile > addMissingFile _onNewMissingFile ${rtnVal}`);
+		this._onNewMissingFile.fire(rtnVal);
 	}
 
 	removeMissingFiles(uris: Uri[]){
@@ -100,10 +106,8 @@ export class TocFile {
 			return rtnObj;
 		});
 	}
-	checkMissingFile(uri: string){
-		return [...this.missingFiles.keys()].some(v=>{
-			v === uri.toLowerCase();
-		});
+	async checkMissingFile(uri: string){
+		return this.missingFiles.has(uri.toLowerCase())
 	}
 	checkMissingFiles(uri: string[]){
 		return new Promise<Set<string>>((resolve, reject) => {
@@ -263,7 +267,7 @@ export class TocOutline implements Disposable {
 		tocFileUri: Uri,
 		tocFileContents: string,
 	) {
-		this.tocFile = new TocFile(tocFileUri, tocFileContents);
+		this.tocFile = new TocFile(tocFileUri, tocFileContents, this);
 		Workspace.onDidCreateFiles((e) => this.tocFile?.removeMissingFiles(e.files.map(e=> e)));
 		this.uri = this.tocFile.tocUri;
 		this.treeItem = new TocOutlineTreeItem(this.tocFile);
@@ -278,14 +282,19 @@ export class TocOutline implements Disposable {
 export class TocOutlineProvider implements TreeDataProvider<TocOutlineTreeItem> {
 	private _onCreateTocOutline = new EventEmitter<TocOutline>();
 	readonly onCreateTocOutline: Event<TocOutline> = this._onCreateTocOutline.event;
+
+	private _onDidChangeTreeData: EventEmitter<TocOutlineTreeItem | undefined | null | void> = new EventEmitter<TocOutlineTreeItem | undefined | null | void>();
+	readonly onDidChangeTreeData: Event<TocOutlineTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
+
 	//private tree: json.Node;
 	private editor: TextEditor;
 
-	private addonOutlines:Map<string,TocOutline> = new Map();
+	private watTrees:Map<string,TocOutline> = new Map();
 
-	private addTocOutline(addonOutline: TocOutline) {
-		this.addonOutlines.set(addonOutline.tocFile?.tocUri.fsPath!, addonOutline);
-		this._onCreateTocOutline.fire(addonOutline);
+	public addTocOutline(watTree: TocOutline) {
+		this.watTrees.set(watTree.tocFile.tocUri.fsPath, watTree);
+		//this._onCreateTocOutline.fire(watTree);
+		this._onDidChangeTreeData.fire(watTree.treeItem);
 	}
 	
 	constructor() {
@@ -294,15 +303,15 @@ export class TocOutlineProvider implements TreeDataProvider<TocOutlineTreeItem> 
 
 	}
 	getTocOutlineTreeItems(){
-		return [...this.addonOutlines].map(v=>{
+		return [...this.watTrees].map(v=>{
 			return v[1].treeItem;
 		});
 	}
 	public getTocOutlines(){
-		return [...this.addonOutlines].map(v=>v[1]);
+		return [...this.watTrees].map(v=>v[1]);
 	}
-	public addonOutline(uri: Uri) {
-		return this.addonOutlines.get(uri.toString());
+	public watTree(uri: Uri) {
+		return this.watTrees.get(uri.toString());
 	}
 	checkTocsMissingFiles(uri: Uri){
 	}
@@ -311,15 +320,17 @@ export class TocOutlineProvider implements TreeDataProvider<TocOutlineTreeItem> 
 	}
 
 	refresh(tocUriStr?: Uri) {
-		Workspace.findFiles(new RelativePattern(Workspace.workspaceFolders![0],'**/*.toc')).then(tocUris => {
-			tocUris.map(tocUri => {
+		
+		//.findFiles(new RelativePattern(Workspace.workspaceFolders![0],'**/*.toc')).then(tocUris => {
+/* 			tocUris.map(tocUri => {
 				Workspace.fs.readFile(tocUri).then(tocFileContents => {
 					this.addTocOutline(new TocOutline(tocUri, tocFileContents.toString()));
 				}, reason => {
 					throw Error(reason);
 				});
 			});
-		});
+		}); */
+		this._onDidChangeTreeData.fire();
 		if (tocUriStr) {
 		}
 	}

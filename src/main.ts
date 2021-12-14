@@ -12,23 +12,9 @@ import { WatDecorations } from './decorationProvider';
 import { WatExtensionImpl } from './extension';
 import { WatFileSystemProvider } from './fileSystemProvider';
 import { Model } from './model';
-import { TocOutlineProvider } from './tocOutline';
 import { logTimestamp } from './util';
-
-export async function activate1(context: ExtensionContext) {
-	const disposables: Disposable[] = [];
-	const addonOutlineProvider = new TocOutlineProvider();
-	const view = Window.createTreeView('addonOutline',{treeDataProvider: addonOutlineProvider});
-	//const tocDecorations = new WatDecorations(addonOutlineProvider);
-	//disposables.push(tocDecorations);
-	context.subscriptions.push(view);
-	Commands.registerCommand('addonOutline.refresh', () => addonOutlineProvider.refresh());
-	Commands.registerCommand('addonOutline.openFile', (s) => addonOutlineProvider.openFile(s));
-	Commands.registerCommand('addonOutline.refreshNode', offset => addonOutlineProvider.refresh(offset));
-	Commands.registerCommand('addonOutline.renameNode', offset => addonOutlineProvider.rename(offset));
-	Commands.registerCommand('extension.openJsonSelection', range => addonOutlineProvider.select(range));
-}
-
+import * as nls from 'vscode-nls';
+const localize = nls.loadMessageBundle();
 
 async function createModel(context: ExtensionContext, outputChannel: OutputChannel, disposables: Disposable[]): Promise<Model> {
 	const model = new Model(context, outputChannel);
@@ -45,11 +31,10 @@ async function createModel(context: ExtensionContext, outputChannel: OutputChann
 
 		outputChannel.appendLine(`${logTimestamp()} ${lines.join('\n')}`);
 	};
-	const cc = new CommandCenter(model, outputChannel);
 	disposables.push(
-		cc,
-		new WatFileSystemProvider(model),
+		new CommandCenter(model, outputChannel),
 		new WatDecorations(model),
+		new WatFileSystemProvider(model),
 	);
 
 	return model;
@@ -57,11 +42,14 @@ async function createModel(context: ExtensionContext, outputChannel: OutputChann
 
 
 export async function _activate(context: ExtensionContext): Promise<WatExtensionImpl>{
+	console.log(`_activate`)
 	const disposables: Disposable[] = [];
 	context.subscriptions.push(new Disposable(() => Disposable.from(...disposables).dispose()));
 
 	const outputChannel = Window.createOutputChannel('WoW Addon Tools');
 	disposables.push(outputChannel);
+
+	//const { name, version } = require('../package.json') as { name: string, version: string };
 	try {
 		const model = await createModel(context, outputChannel, disposables);
 		return new WatExtensionImpl(model);

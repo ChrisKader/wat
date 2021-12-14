@@ -1,10 +1,10 @@
-import { commands, Disposable, Event, EventEmitter, Memento, OutputChannel, workspace as Workspace, Uri, window as Window, window, workspace, WorkspaceFoldersChangeEvent, TextEditor, ExtensionContext } from "vscode";
+import { commands as Commands, Disposable, Event, EventEmitter, Memento, OutputChannel, workspace as Workspace, Uri, window as Window, window, workspace, WorkspaceFoldersChangeEvent, TextEditor, ExtensionContext } from "vscode";
 import { TocOutline, TocOutlineProvider } from "./tocOutline";
 import { anyEvent, dispose, eventToPromise, filterEvent, isDescendant, logTimestamp } from "./util";
 import * as fs from 'fs'
 import { State } from "./wat";
-import path = require("path");
-import { localize } from "vscode-nls";
+import * as path from "path";
+import { AddonTemplate } from "./addonTemplate";
 interface ParsedToc extends Disposable {
     tocOutline: TocOutline
 }
@@ -14,8 +14,8 @@ export interface TocChangeEvent {
 }
 
 export class Model {
-    private _onDidOpenTocFile = new EventEmitter<Uri>();
-    readonly onDidOpenTocFile: Event<Uri> = this._onDidOpenTocFile.event;
+    private _onDidOpenTocFile = new EventEmitter<TocOutline>();
+    readonly onDidOpenTocFile: Event<TocOutline> = this._onDidOpenTocFile.event;
 
     private _onDidCloseTocFile = new EventEmitter<Uri>();
     readonly onDidCloseTocFile: Event<Uri> = this._onDidCloseTocFile.event;
@@ -35,9 +35,9 @@ export class Model {
     setState(state: State): void {
         this._state = state;
         this._onDidChangeState.fire(state);
-        commands.executeCommand('setContext', 'wat.state', state);
+        Commands.executeCommand('setContext', 'wat.state', state);
     }
-
+    private tocOutlineProvider: TocOutlineProvider
     get isInitialized(): Promise<void> {
         if (this._state === 'initialized') {
             return Promise.resolve();
@@ -47,25 +47,38 @@ export class Model {
     }
 
     private disposables: Disposable[] = [];
-
+    private addTocFile(tocOutline: TocOutline){
+        this.tocOutlineProvider.addTocOutline(tocOutline)
+    }
     constructor(private context: ExtensionContext, private outputChannel: OutputChannel){
         Workspace.onDidChangeWorkspaceFolders(this.onDidChangeWorkspaceFolders, this, this.disposables);
         Window.onDidChangeVisibleTextEditors(this.onDidChangeVisibleTextEditors, this, this.disposables);
-        //Workspace.onDidChangeConfiguration(this.onDidChangeConfiguration, this, this.disposables);
 
         const fsWatcher = Workspace.createFileSystemWatcher('**');
         this.disposables.push(fsWatcher);
-        const tocOutlineProvider = new TocOutlineProvider();
-        const view = Window.createTreeView('addonOutline', { treeDataProvider: tocOutlineProvider });
-        context.subscriptions.push(view);
-        this.disposables.push(tocOutlineProvider);
         const onWorkspaceChange = anyEvent(fsWatcher.onDidChange, fsWatcher.onDidCreate, fsWatcher.onDidDelete);
-        const onGitRepositoryChange = filterEvent(onWorkspaceChange, uri => /\/\.git/.test(uri.path));
+        this.tocOutlineProvider = new TocOutlineProvider();
+        this.onDidOpenTocFile(e => this.tocOutlineProvider.addTocOutline(e))
         //const onPossibleGitRepositoryChange = filterEvent(onGitRepositoryChange, uri => !this.getRepository(uri));
         //onPossibleGitRepositoryChange(this.onPossibleGitRepositoryChange, this, this.disposables);
-
         this.setState('uninitialized');
-        this.doInitialScan().finally(() => this.setState('initialized'));
+        this.doInitialScan().finally(() => {
+            this.setState('initialized')
+            console.log('model.ts > constructor > init done!')
+            if(this.tocOutlineProvider){
+                const view = Window.createTreeView('watTree', {treeDataProvider: this.tocOutlineProvider});
+                Commands.registerCommand('watTree.refresh', () => this.tocOutlineProvider!.refresh());
+                Commands.registerCommand('watTree.openFile', (s) => this.tocOutlineProvider!.openFile(s));
+                Commands.registerCommand('watTree.refreshNode', offset => this.tocOutlineProvider!.refresh(offset));
+                Commands.registerCommand('watTree.renameNode', offset => this.tocOutlineProvider!.rename(offset));
+                context.subscriptions.push(view);
+                this.tocOutlineProvider.refresh()
+            }
+            //this.disposables.push(tocOutlineProvider);
+        }).catch(r=>{
+            this.tocOutlineProvider = new TocOutlineProvider()
+        })
+        
     }
     private async doInitialScan(): Promise<void> {
         await Promise.all([
@@ -84,24 +97,25 @@ export class Model {
 
         await Promise.all((workspace.workspaceFolders || []).map(async folder => {
             const root = folder.uri.fsPath;
-            const children = (await fs.promises.readdir(root, { withFileTypes: true })).filter(dirent => dirent.isDirectory()).map(dirent => dirent.name);
-            const subfolders = new Set(children.filter(child => child !== '.git').map(child => path.join(root, child)));
+            //workspace.findFiles('**/*.toc')
+            //const children = (await fs.promises.readdir(root, { withFileTypes: true })).filter(dirent => dirent.isFile()).map(dirent => dirent.name);
+            const subfolders = await workspace.findFiles('**/*.toc')
 
-            const scanPaths: never[] = [];
+            /* const scanPaths: never[] = [];
             for (const scanPath of scanPaths) {
                 if (scanPath === '.toc') {
                     continue;
                 }
 
                 if (path.isAbsolute(scanPath)) {
-                    console.warn(localize('not supported', ""));
+                    console.warn('not supported');
                     continue;
                 }
 
                 subfolders.add(path.join(root, scanPath));
-            }
+            } */
 
-            await Promise.all([...subfolders].map(f => this.openToc(f)));
+            await Promise.all(subfolders.map(f => this.openToc(f.fsPath)));
         }));
     }
     private async onDidChangeVisibleTextEditors(editors: readonly TextEditor[]): Promise<void> {
@@ -136,7 +150,7 @@ export class Model {
         if (this.getToc(tocPath)) {
             return;
         }
-
+        // TODO: Add config
         /* const config = workspace.getConfiguration('wat', Uri.file(repoPath));
         const enabled = config.get<boolean>('enabled') === true;
 
@@ -145,15 +159,11 @@ export class Model {
         } */
 
         if (!workspace.isTrusted) {
-            // Check if the folder is a bare repo: if it has a file named HEAD && `rev-parse --show -cdup` is empty
+            // TODO: Add error for untrusted workspace.
             try {
-                /* fs.accessSync(path.join(repoPath, 'HEAD'), fs.constants.F_OK);
-                const result = await this.git.exec(repoPath, ['-C', repoPath, 'rev-parse', '--show-cdup'], { log: false });
-                if (result.stderr.trim() === '' && result.stdout.trim() === '') {
-                    return;
-                } */
+
             } catch {
-                // If this throw, we should be good to open the repo (e.g. HEAD doesn't exist)
+
             }
         }
 
@@ -190,32 +200,11 @@ export class Model {
         //const changeListener = repository.onDidChangeRepository(uri => this._onDidChangeRepository.fire({ repository, uri }));
         //const originalResourceChangeListener = repository.onDidChangeOriginalResource(uri => this._onDidChangeOriginalResource.fire({ repository, uri }));
 
-        const shouldDetectSubmodules = workspace
-            .getConfiguration('wat', Uri.file(toc.tocFile.addonFolder.fsPath))
-            .get<boolean>('detectSubmodules') as boolean;
 
-        const submodulesLimit = workspace
-            .getConfiguration('wat', Uri.file(toc.tocFile.addonFolder.fsPath))
-            .get<number>('detectSubmodulesLimit') as number;
 
-        const checkForSubmodules = () => {
-            if (!shouldDetectSubmodules) {
-                return;
-            }
-
-/*             if (repository.submodules.length > submodulesLimit) {
-                window.showWarningMessage(localize('too many submodules', "The '{0}' repository has {1} submodules which won't be opened automatically. You can still open each one individually by opening a file within.", path.basename(repository.root), repository.submodules.length));
-                statusListener.dispose();
-            } */
-
-/*             repository.submodules
-                .slice(0, submodulesLimit)
-                .map(r => path.join(repository.root, r.path))
-                .forEach(p => this.eventuallyScanPossibleGitRepository(p)); */
-        };
 
         //const statusListener = repository.onDidRunGitStatus(checkForSubmodules);
-        checkForSubmodules();
+        //checkForSubmodules();
 
         const dispose = () => {
             //disappearListener.dispose();
@@ -230,7 +219,9 @@ export class Model {
 
         const openToc:ParsedToc = { tocOutline:toc, dispose };
         this.parsedTocs.push(openToc);
-        this._onDidOpenTocFile.fire(openToc.tocOutline.uri);
+        this._onDidOpenTocFile.fire(openToc.tocOutline);
+        this.addTocFile(openToc.tocOutline)
+        this.tocOutlineProvider.refresh()
     }
     private async onDidChangeWorkspaceFolders({ added, removed }: WorkspaceFoldersChangeEvent): Promise<void> {
         const possibleRepositoryFolders = added
