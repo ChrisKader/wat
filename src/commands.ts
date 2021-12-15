@@ -42,19 +42,23 @@ export class CommandCenter {
 
     @command('wat.createAddon')
     async createAddon() {
+        this.outputChannel.appendLine(`${logTimestamp()}: Running command wat.createAddon`);
         window.showInputBox({ title: 'Addon Name', placeHolder: 'Choose wisely! This will also be the folder name.' }).then(addonName => {
             if (addonName) {
-                console.log(`Addon name: ${addonName}`)
-                window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false }).then(async rootFolder => {
-                    console.log(`Root Folder: ${rootFolder}`)
-                    if (rootFolder && rootFolder[0]) {
-                        const parentDir = rootFolder[0]
+                this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Addon Name: ${addonName}`);
+                window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false }).then(async parentFolder => {
+                    if (parentFolder && parentFolder[0]) {
+                        const parentDir = parentFolder[0]
+                        this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Parent Directory: ${parentDir}`);
                         const addonRootDir = path.join(parentDir.fsPath, addonName)
-                        console.log(`Addon Root Dir: ${addonRootDir}`)
+                        this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Addon Root Directory: ${addonRootDir}`);
                         mkdir(addonRootDir).then(async () => {
                             console.log(`Successfuly created Addon Root ${addonRootDir}`)
                             console.log(`Cloning template into ${addonRootDir}/wow-addon-template`)
-                            await commands.executeCommand('git.clone', 'https://github.com/ChrisKader/wow-addon-template', addonRootDir)
+                            commands.executeCommand('git.clone', 'https://github.com/ChrisKader/wow-addon-template', addonRootDir).then(() => {
+                                console.log('clone done!')
+                                readdir(addonRootDir)
+                            })
                             const tempFolder = path.join(addonRootDir, 'wow-addon-template')
                             const gitFolderPath = path.join(tempFolder, '\/.git')
                             console.log(gitFolderPath)

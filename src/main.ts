@@ -13,8 +13,7 @@ import { WatExtensionImpl } from './extension';
 import { WatFileSystemProvider } from './fileSystemProvider';
 import { Model } from './model';
 import { logTimestamp } from './util';
-import * as nls from 'vscode-nls';
-const localize = nls.loadMessageBundle();
+
 
 async function createModel(context: ExtensionContext, outputChannel: OutputChannel, disposables: Disposable[]): Promise<Model> {
 	const model = new Model(context, outputChannel);
