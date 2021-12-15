@@ -99,7 +99,7 @@ export class CommandCenter {
                                                         console.log(`Successfully deleted ${gitFolderPath} folder.`)
                                                         readdir(tempFolder, { withFileTypes: true }).then(async (entries) => {
                                                             entries.map(async entry => {
-                                                                await copyFile(path.join(tempFolder, entry.name), path.join(addonRootDir, entry.name))
+                                                                await copyFile(path.join(tempFolder, entry.name), path.join(addonRootDir, entry.name)).then().catch((e)=>console.log(e))
                                                             })
                                                         }).then(() => {
                                                             commands.executeCommand('vscode.openFolder', Uri.file(addonRootDir), true)
