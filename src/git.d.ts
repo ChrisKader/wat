@@ -3,10 +3,26 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Uri, Event, Disposable, ProviderResult } from 'vscode';
+import { Uri, Event, Disposable, ProviderResult, Progress, CancellationToken } from 'vscode';
 export { ProviderResult } from 'vscode';
+import * as cp from 'child_process'
+export interface CloneOptions {
+	readonly parentPath: string;
+	readonly progress: Progress<{ increment: number }>;
+	readonly recursive?: boolean;
+}
 
 export interface Git {
+    _model: {
+		git: {
+			stream(cwd: string, args: string[], options: cp.SpawnOptions): cp.ChildProcess
+			addRemote(name: string, url: string): Promise<void>;
+			fetch(options: { remote?: string, ref?: string, all?: boolean, prune?: boolean, depth?: number, silent?: boolean, readonly cancellationToken?: CancellationToken }): Promise<void>
+			init(repository: string):Promise<void>;
+			clone(url: string, options: CloneOptions, cancellationToken?: CancellationToken): Promise<string>;
+			open(repository: string, dotGit: string): Repository;
+		}
+	};
 	readonly path: string;
 }
 
@@ -102,6 +118,8 @@ export interface Change {
 }
 
 export interface RepositoryState {
+	get git(): Git;
+	checkout(treeish: string, paths: string[], opts: { track?: boolean, detached?: boolean }): Promise<void>
 	readonly HEAD: Branch | undefined;
 	readonly refs: Ref[];
 	readonly remotes: Remote[];
@@ -153,7 +171,11 @@ export interface BranchQuery {
 	readonly count?: number;
 	readonly contains?: string;
 }
-
+export interface PullOptions {
+	unshallow?: boolean;
+	tags?: boolean;
+	readonly cancellationToken?: CancellationToken;
+}
 export interface Repository {
 
 	readonly rootUri: Uri;
@@ -203,7 +225,7 @@ export interface Repository {
 	deleteTag(name: string): Promise<void>;
 
 	status(): Promise<void>;
-	checkout(treeish: string): Promise<void>;
+	checkout(treeish: string, paths: string[], opts: { track?: boolean, detached?: boolean }): Promise<void>
 
 	addRemote(name: string, url: string): Promise<void>;
 	removeRemote(name: string): Promise<void>;
@@ -211,7 +233,7 @@ export interface Repository {
 
 	fetch(options?: FetchOptions): Promise<void>;
 	fetch(remote?: string, ref?: string, depth?: number): Promise<void>;
-	pull(unshallow?: boolean): Promise<void>;
+	pull(rebase?: boolean, remote?: string, branch?: string, options?: PullOptions): Promise<void>
 	push(remoteName?: string, branchName?: string, setUpstream?: boolean, force?: ForcePushMode): Promise<void>;
 
 	blame(path: string): Promise<string>;
@@ -269,7 +291,7 @@ export interface API {
 	readonly repositories: Repository[];
 	readonly onDidOpenRepository: Event<Repository>;
 	readonly onDidCloseRepository: Event<Repository>;
-
+	
 	toGitUri(uri: Uri, ref: string): Uri;
 	getRepository(uri: Uri): Repository | null;
 	init(root: Uri): Promise<Repository | null>;
