@@ -1,7 +1,7 @@
 import { readdir, readFile, writeFile, rename, rm, mkdtemp, stat, mkdir, access, copyFile } from 'fs/promises';
 import path = require('path');
 import { commands, Disposable, extensions as Extensions, OutputChannel, window, Uri, workspace, ProgressLocation } from 'vscode';
-import { API, GitExtension } from './git'
+import { API, GitExtension, Repository } from './git'
 import { Model } from './model';
 import { logTimestamp } from './util';
 interface WatCommandOptions {
@@ -65,25 +65,32 @@ export class CommandCenter {
                     if (typeof (parentFolders) !== 'undefined') {
                         const parentDir = parentFolders[0];
                         this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Parent Directory: ${parentDir}`);
-                        const templateGit = 'https://github.com/ckog/wow-addon-template';
+                        const templateGit = 'https://github.com/chriskader/wow-addon-template';
                         const addonRootDir = path.join(parentDir.fsPath, addonName);
                         this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Addon Root Directory: ${addonRootDir}`);
                         try {
                             const addonReplaceReg = /@addon-name@/gm;
-                            await mkdir(addonRootDir);
-                            await git.init(addonRootDir).then(async ()=>{
-                                const gitRep = git.open(addonRootDir, '.git');
-                                await gitRep.addRemote('origin', templateGit);
-                                await gitRep.fetch();
-                                await gitRep.checkout('origin/main', ['standard'], {})
-                            });
-                            this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Cloning ${templateGit} into ${parentDir}/wow-addon-template`);
+                            this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Making Addon Directory at ${addonRootDir}`);
+                            await mkdir(addonRootDir)
+                            this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: git.init in ${addonRootDir}`);
+                            await git.init(addonRootDir)
+                            this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: git.open in ${addonRootDir}`);
+                            let templateRepo = git.open(addonRootDir, '.git')
+                            await Promise.all(
+                                new Set(
+                                    [
+                                        templateRepo.addRemote('origin', templateGit),
+                                        templateRepo.fetch(),
+                                        templateRepo.checkout('origin/default', [], {})
+                                    ]
+                                )
+                            )
                             /*
                                 Due to the git extension opening a showInformationMessage (small user prompt at the bottom left of the screen)
                                 and holding code execution until its clicked, we are calling the git.clone function directly from the vscode.git extension model.
                             */
                             //commands.executeCommand('git.clone', templateGit, parentDir.fsPath).then(async ()=>{});
-                            const opts = {
+                            /* const opts = {
                                 location: ProgressLocation.Notification,
                                 title: `Cloning ${templateGit} to ${parentDir.path}`,
                                 cancellable: true
@@ -91,7 +98,7 @@ export class CommandCenter {
                             const repositoryPath = await window.withProgress(
                                 opts,
                                 (progress, token) => git.clone(templateGit!, { parentPath: parentDir.fsPath!, progress }, token)
-                            );
+                            ); */
 
                             if (repositoryPath) {
                                 const templateRepo = git.open(repositoryPath, path.join(repositoryPath, '.git'));
