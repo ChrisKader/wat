@@ -1,7 +1,7 @@
 import { readdir, readFile, writeFile, rename, rm, mkdtemp, stat, mkdir, access, copyFile } from 'fs/promises';
-import path = require('path');
+import * as path from 'path';
 import { commands, Disposable, extensions as Extensions, OutputChannel, window, Uri, workspace, ProgressLocation } from 'vscode';
-import { API, GitExtension, Repository } from './git'
+import { API, GitExtension, Repository } from './git';
 import { Model } from './model';
 import { logTimestamp } from './util';
 interface WatCommandOptions {
@@ -71,20 +71,14 @@ export class CommandCenter {
                         try {
                             const addonReplaceReg = /@addon-name@/gm;
                             this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Making Addon Directory at ${addonRootDir}`);
-                            await mkdir(addonRootDir)
+                            await mkdir(addonRootDir);
                             this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: git.init in ${addonRootDir}`);
-                            await git.init(addonRootDir)
+                            await git.init(addonRootDir);
                             this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: git.open in ${addonRootDir}`);
-                            let templateRepo = git.open(addonRootDir, '.git')
-                            await Promise.all(
-                                new Set(
-                                    [
-                                        templateRepo.addRemote('origin', templateGit),
-                                        templateRepo.fetch(),
-                                        templateRepo.checkout('origin/default', [], {})
-                                    ]
-                                )
-                            )
+                            let templateRepo = git.open(addonRootDir, '.git');
+                            await templateRepo.addRemote('origin', templateGit);
+                            await templateRepo.fetch();
+                            await templateRepo.checkout('origin/default', [], {});
                             /*
                                 Due to the git extension opening a showInformationMessage (small user prompt at the bottom left of the screen)
                                 and holding code execution until its clicked, we are calling the git.clone function directly from the vscode.git extension model.
@@ -99,56 +93,49 @@ export class CommandCenter {
                                 opts,
                                 (progress, token) => git.clone(templateGit!, { parentPath: parentDir.fsPath!, progress }, token)
                             ); */
-
-                            if (repositoryPath) {
-                                const templateRepo = git.open(repositoryPath, path.join(repositoryPath, '.git'));
-                                this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Clone of ${templateGit} into ${parentDir}/wow-addon-template complete!`);
-                                await rename(path.join(parentDir.fsPath, 'wow-addon-template'), addonRootDir).then(async () => {
-                                    await rename(path.join(addonRootDir, 'Addon'), path.join(addonRootDir, addonName));
-                                    await readdir(addonRootDir, { withFileTypes: true }).then(async fileList => {
-                                        for (let file of fileList) {
-                                            const fileName = path.join(addonRootDir, file.name);
-                                            if (file.isDirectory()) {
-                                                if (file.name === '.git') {
-                                                    await rm(fileName, { force: true, recursive: true });
-                                                    this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Deleted ${fileName}`);
-                                                }
-                                                if (file.name === addonName) {
-                                                    const extList = ['toc', 'lua'];
-                                                    for (let ext of extList) {
-                                                        const oldFileName = path.join(fileName, `Addon.${ext}`);
-                                                        const newFileName = path.join(fileName, `${addonName}.${ext}`);
-                                                        await rename(oldFileName, newFileName).then(async () => {
-                                                            this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Renamed ${oldFileName} to ${newFileName}`);
-                                                            await readFile(newFileName).then(async fileBuffer => {
-                                                                this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Reading ${newFileName}`);
-                                                                await writeFile(newFileName, fileBuffer.toString().replace(addonReplaceReg, addonName));
-                                                                this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Writing ${newFileName}`);
-                                                            });
-                                                        });
-                                                    };
-                                                };
+                            await rm(path.join(addonRootDir, 'README.md')).then(async () => {
+                                await rename(path.join(addonRootDir, '_README.md'), path.join(addonRootDir, 'README.md'));
+                                await rename(path.join(addonRootDir, 'Addon'), path.join(addonRootDir, addonName));
+                                await readdir(addonRootDir, { withFileTypes: true }).then(async fileList => {
+                                    for (let file of fileList) {
+                                        const fileName = path.join(addonRootDir, file.name);
+                                        if (file.isDirectory()) {
+                                            if (file.name === '.git') {
+                                                await rm(fileName, { force: true, recursive: true });
+                                                this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Deleted ${fileName}`);
                                             }
-                                            if (file.isFile()) {
-                                                if (file.name === 'pkgmeta.yaml' || file.name === 'README.md') {
-                                                    await readFile(fileName).then(async fileBuffer => {
-                                                        this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Reading ${fileName}`);
-                                                        await writeFile(fileName, fileBuffer.toString().replace(addonReplaceReg, addonName));
-                                                        this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Writing ${fileName}`);
+                                            if (file.name === addonName) {
+                                                const extList = ['toc', 'lua'];
+                                                for (let ext of extList) {
+                                                    const oldFileName = path.join(fileName, `Addon.${ext}`);
+                                                    const newFileName = path.join(fileName, `${addonName}.${ext}`);
+                                                    await rename(oldFileName, newFileName).then(async () => {
+                                                        this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Renamed ${oldFileName} to ${newFileName}`);
+                                                        await readFile(newFileName).then(async fileBuffer => {
+                                                            this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Reading ${newFileName}`);
+                                                            await writeFile(newFileName, fileBuffer.toString().replace(addonReplaceReg, addonName));
+                                                            this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Writing ${newFileName}`);
+                                                        });
                                                     });
                                                 };
                                             };
+                                        }
+                                        if (file.isFile()) {
+                                            if (file.name === 'pkgmeta.yaml' || file.name === 'README.md') {
+                                                await readFile(fileName).then(async fileBuffer => {
+                                                    this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Reading ${fileName}`);
+                                                    await writeFile(fileName, fileBuffer.toString().replace(addonReplaceReg, addonName));
+                                                    this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Writing ${fileName}`);
+                                                });
+                                            };
                                         };
-                                    });
+                                    };
                                 });
                                 await mkdir(path.join(addonRootDir, addonName, 'libs')).catch((err) => {
                                     throw err;
                                 });
                                 commands.executeCommand('vscode.openFolder', Uri.file(addonRootDir), true);
-                            } else {
-                                this.outputChannel.appendLine(`${logTimestamp()}: wat.createAddon: Clone of ${templateGit} into ${parentDir}/wow-addon-template failed!`);
-                                throw Error(`${logTimestamp()}: wat.createAddon: Clone of ${templateGit} into ${parentDir}/wow-addon-template failed!`);
-                            }
+                            });
                         } catch (err) {
                             throw err;
                         }
