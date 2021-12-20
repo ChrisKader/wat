@@ -16,6 +16,11 @@
 		".build/**": true,
 		"out/**": true,
 	},
+	"eslint.options": {
+		"rulePaths": [
+			"./build/lib/eslint"
+		]
+	},
 	"npm.packageManager": "yarn",
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"typescript.preferences.importModuleSpecifier": "non-relative",

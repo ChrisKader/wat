@@ -1,4 +1,214 @@
 {
   "name": "wat",
-  "packageManager": "yarn@3.1.1"
+  "packageManager": "yarn@3.1.1",
+  "displayName": "WoW Addon Tools",
+  "description": "",
+  "version": "0.0.1",
+  "workspaces": [
+    "build",
+    "watch"
+  ],
+  "engines": {
+    "vscode": "^1.62.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:watTree"
+  ],
+  "extensionKind": [
+    "workspace",
+    "ui"
+  ],
+  "main": "./dist/main.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "toc",
+        "extensions": [
+          ".toc"
+        ],
+        "aliases": [
+          "Toc",
+          "TOC"
+        ],
+        "configuration": "./resources/language/configs/toc-language-configuration.json"
+      },
+      {
+        "id": "lua",
+        "extensions": [
+          ".lua"
+        ],
+        "aliases": [
+          "Lua"
+        ],
+        "configuration": "./resources/language/configs/lua-language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "path": "./resources/language/grammars/toc.tmLanguage.json",
+        "scopeName": "source.toc",
+        "language": "toc"
+      },
+      {
+        "path": "./resources/language/grammars/lua.tmLanguage.json",
+        "scopeName": "source.lua",
+        "language": "lua"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "lua",
+        "path": "./resources/language/snippets/lua.json"
+      },
+      {
+        "language": "toc",
+        "path": "./resources/language/snippets/toc.json"
+      }
+    ],
+    "views": {
+      "watTree": [
+        {
+          "id": "watTree",
+          "name": "WoW Addon Outline"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "watTree.refresh",
+        "title": "Refresh",
+        "icon": "$(timeline-refresh)"
+      },
+      {
+        "command": "watTree.refreshNode",
+        "title": "Refresh",
+        "icon": "$(timeline-refresh)"
+      },
+      {
+        "command": "watTree.renameNode",
+        "title": "Rename"
+      },
+      {
+        "command": "watTree.openFile",
+        "title": "Open File"
+      },
+      {
+        "command": "wat.createAddon",
+        "title": "Create Addon"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "watTree.refresh",
+          "when": "view == watTree",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "watTree.openFile",
+          "when": "viewItem == file"
+        },
+        {
+          "command": "watTree.renameNode",
+          "when": "view == watTree"
+        },
+        {
+          "command": "watTree.refreshNode",
+          "when": "view == watTree",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "title": "WoW Addon Outline",
+        "properties": {
+          "watTree.autorefresh": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "watTree",
+          "title": "Addon Outline",
+          "icon": "resources/wow.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "watTree",
+        "contents": "In order to use WoW Addon Tool's features, you can open a folder containing a TOC file or create an addon from a template.\n[Open Folder](command:vscode.openFolder)\n[Create Addon](command:wat.createAddon)\n",
+        "when": "workbenchState == empty"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "gulp compile-extension:wat",
+    "compile-web": "npx webpack-cli --config extension-browser.webpack.config --mode none",
+    "watch": "gulp watch-extension:wat",
+    "watch-web": "npx webpack-cli --config extension-browser.webpack.config --mode none --watch --info-verbosity verbose",
+    "watch-extensions": "node --max_old_space_size=4095 ./node_modules/gulp/bin/gulp.js watch-extensions",
+    "watch-extensionsd": "deemon yarn watch-extensions",
+    "kill-watch-extensionsd": "deemon --kill yarn watch-extensions",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/copy-webpack-plugin": "^6.0.3",
+    "@types/graceful-fs": "^4.1.5",
+    "@types/mocha": "^8.2.0",
+    "@types/node": "16.x",
+    "@types/node-fetch": "^2.5.7",
+    "@types/underscore": "^1.11.4",
+    "@types/vscode": "^1.62.0",
+    "@types/webpack": "^4.41.25",
+    "@typescript-eslint/eslint-plugin": "3.2.0",
+    "@typescript-eslint/parser": "^3.3.0",
+    "@vscode/test-electron": "^1.6.2",
+    "copy-webpack-plugin": "^10.2.0",
+    "debounce": "^1.0.0",
+    "deemon": "^1.4.0",
+    "eslint": "6.8.0",
+    "event-stream": "3.3.4",
+    "fancy-log": "^1.3.3",
+    "glob": "^5.0.13",
+    "gulp": "^4.0.0",
+    "gulp-bom": "^3.0.0",
+    "gulp-filter": "^7.0.0",
+    "gulp-json-editor": "^2.5.0",
+    "gulp-remote-retry-src": "^0.6.0",
+    "gulp-rename": "^2.0.0",
+    "gulp-sourcemaps": "^3.0.0",
+    "gulp-tsb": "4.0.6",
+    "gulp-vinyl-zip": "^2.1.2",
+    "merge-options": "^3.0.4",
+    "mocha": "^8.2.1",
+    "path-browserify": "^1.0.1",
+    "ts-loader": "^9.2.5",
+    "typescript": "4.6.0-dev.20211115",
+    "typescript-formatter": "7.1.0",
+    "underscore": "^1.13.2",
+    "vscode-nls": "^5.0.0",
+    "vscode-nls-dev": "^3.3.2",
+    "webpack": "^5.42.0",
+    "webpack-cli": "^4.7.2",
+    "webpack-stream": "^6.1.2"
+  },
+  "dependencies": {
+    "graceful-fs": "4.2.8",
+    "node-fetch": "2.6.1"
+  },
+  "resolutions": {
+    "elliptic": "^6.5.3",
+    "nwmatcher": "^1.4.4"
+  }
 }
