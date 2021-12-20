@@ -1,10 +1,9 @@
 import { commands as Commands, Disposable, Event, EventEmitter, Memento, OutputChannel, workspace as Workspace, Uri, window as Window, window, workspace, WorkspaceFoldersChangeEvent, TextEditor, ExtensionContext } from "vscode";
 import { TocOutline, TocOutlineProvider } from "./tocOutline";
 import { anyEvent, dispose, eventToPromise, filterEvent, isDescendant, logTimestamp } from "./util";
-import * as fs from 'fs'
+import * as fs from 'fs';
 import { State } from "./wat";
 import * as path from "path";
-import { AddonTemplate } from "./addonTemplate";
 interface ParsedToc extends Disposable {
     tocOutline: TocOutline
 }

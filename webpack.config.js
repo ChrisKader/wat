@@ -9,8 +9,9 @@ const copyPlugin = require("copy-webpack-plugin");
 
 /** @type WebpackConfig */
 const extensionConfig = {
-  target: 'node', // vscode extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
-	mode: 'development', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
+  target: 'webworker', // vscode extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
+  mode:'none',
+  node: false,
   context: __dirname,
   entry: './src/main.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
   output: {
@@ -26,6 +27,11 @@ const extensionConfig = {
   },
   resolve: {
     // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
+    alias: {
+			'node-fetch': path.resolve(__dirname, 'node_modules/node-fetch/fetch.js'),
+    },
+    fallback: { "stream": false },
+    mainFields: ['module', 'main'],
     extensions: ['.ts', '.js']
   },
   plugins: [
@@ -45,6 +51,7 @@ const extensionConfig = {
             loader: 'ts-loader',
             options: {
               compilerOptions: {
+                'sourceMap': true,  
                   "module": "es6" // override `tsconfig.json` so that TypeScript emits native JavaScript modules.
               }
             }

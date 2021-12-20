@@ -1,4 +1,4 @@
-import { window as Window, workspace as Workspace, Uri, Disposable, Event, EventEmitter, FileDecoration, FileDecorationProvider, ThemeColor, } from 'vscode';
+import { window as Window, Uri, Disposable, Event, EventEmitter, FileDecoration, FileDecorationProvider, ThemeColor, } from 'vscode';
 import { Model } from './model';
 import { TocOutline} from './tocOutline';
 import { dispose } from './util';
@@ -6,7 +6,7 @@ import { dispose } from './util';
 
 class WatDecorationProvider implements FileDecorationProvider {
 
-	private static MissingFileDecorationData: FileDecoration = {
+	private static missingFileDecorationData: FileDecoration = {
 		tooltip: 'Missing',
 		color: new ThemeColor('problemsErrorIcon.foreground'),
         propagate: true,
@@ -19,7 +19,7 @@ class WatDecorationProvider implements FileDecorationProvider {
 	private decorations = new Map<string, FileDecoration>();
 
 	constructor(private tocOutline: TocOutline) {
-        console.log(`decorationsProvider.ts > WatDecorationProvider > constructor`)
+        console.log(`decorationsProvider.ts > WatDecorationProvider > constructor`);
 		this.disposables.push(
 			Window.registerFileDecorationProvider(this),
 			tocOutline.tocFile.onNewMissingFile( e => this.onNewMissingFile(e),this)
@@ -27,8 +27,8 @@ class WatDecorationProvider implements FileDecorationProvider {
 	}
 
 	private onNewMissingFile(uri: Uri[]): void {
-        console.log(`${uri}`)
-        console.log(`decorationsProvider.ts > WatDecorationProvider > onNewMissingFile`)
+        console.log(`${uri}`);
+        console.log(`decorationsProvider.ts > WatDecorationProvider > onNewMissingFile`);
 		let newDecorations = new Map<string, FileDecoration>();
         this.collectDecorationData(this.tocOutline, newDecorations);
 
@@ -39,15 +39,15 @@ class WatDecorationProvider implements FileDecorationProvider {
 
  	private collectDecorationData(tocOutline: TocOutline, bucket: Map<string, FileDecoration>): void {
 		for (const r of tocOutline.tocFile.getMissingFiles()) {
-			const decoration = WatDecorationProvider.MissingFileDecorationData
+			const decoration = WatDecorationProvider.missingFileDecorationData;
             bucket.set(r[1].fsPath.toString(), decoration);
 		}
 	}
 
 	async provideFileDecoration(uri: Uri): Promise<FileDecoration | undefined> {
         if(await this.tocOutline.tocFile.checkMissingFile(uri.fsPath)){
-            console.log(`decorationsProvider.ts > WatDecorationProvider > provideFileDecoration ${uri} ${uri.fsPath}`)
-            return WatDecorationProvider.MissingFileDecorationData
+            console.log(`decorationsProvider.ts > WatDecorationProvider > provideFileDecoration ${uri} ${uri.fsPath}`);
+            return WatDecorationProvider.missingFileDecorationData;
         }
 		return this.decorations.get(uri.toString());
 	}
@@ -64,7 +64,7 @@ export class WatDecorations {
     private providers = new Map<TocOutline, Disposable>();
 
     constructor(private model: Model) {
-        console.log('decorationsProvider.ts > WatDecorations > constructor')
+        console.log('decorationsProvider.ts > WatDecorations > constructor');
         //model.tocs.forEach(a=>this.disposables.push(new UnknownTocFileProvider(a!)))
         //this.watTreeProvider.getAddonOutlines().forEach(a=>this.disposables.push(new UnknownTocFileProvider(a!)));
 
@@ -75,7 +75,7 @@ export class WatDecorations {
 
     private update(): void {
         /* const enabled = workspace.getConfiguration('git').get('decorations.enabled'); */
-        console.log('decorationsProvider.ts > WatDecorations > update')
+        console.log('decorationsProvider.ts > WatDecorations > update');
         this.enable();
 /*         if (enabled) {
             this.enable();
@@ -85,7 +85,7 @@ export class WatDecorations {
     }
 
     private enable(): void {
-        console.log('decorationsProvider.ts > WatDecorations > enable')
+        console.log('decorationsProvider.ts > WatDecorations > enable');
         this.model.onDidOpenTocFile(this.onDidOpenTocOutline, this, this.modelDisposables);
     }
 
@@ -96,7 +96,7 @@ export class WatDecorations {
     }
 
     private onDidOpenTocOutline(tocOutline: TocOutline): void {
-        console.log(`decorationsProvider.ts > WatDecorations > onDidOpenTocOutline > ${tocOutline.tocFile.tocUri}`)
+        console.log(`decorationsProvider.ts > WatDecorations > onDidOpenTocOutline > ${tocOutline.tocFile.tocUri}`);
         const provider = new WatDecorationProvider(tocOutline);
         this.providers.set(tocOutline, provider);
     }

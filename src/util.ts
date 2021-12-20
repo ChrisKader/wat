@@ -6,8 +6,7 @@
 import { Event, Disposable, EventEmitter } from 'vscode';
 import { dirname, sep } from 'path';
 import { Readable } from 'stream';
-import { promises as fs, createReadStream } from 'fs';
-import * as byline from 'byline';
+import { promises as fs } from 'fs';
 
 export function log(...args: any[]): void {
     console.log.apply(console, ['git:', ...args]);
@@ -199,22 +198,6 @@ export function find<T>(array: T[], fn: (t: T) => boolean): T | undefined {
     });
 
     return result;
-}
-
-export async function grep(filename: string, pattern: RegExp): Promise<boolean> {
-    return new Promise<boolean>((c, e) => {
-        const fileStream = createReadStream(filename, { encoding: 'utf8' });
-        const stream = byline(fileStream);
-        stream.on('data', (line: string) => {
-            if (pattern.test(line)) {
-                fileStream.close();
-                c(true);
-            }
-        });
-
-        stream.on('error', e);
-        stream.on('end', () => c(false));
-    });
 }
 
 export function readBytes(stream: Readable, bytes: number): Promise<Buffer> {

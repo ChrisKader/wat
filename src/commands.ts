@@ -1,7 +1,8 @@
-import { readdir, readFile, writeFile, rename, rm, mkdtemp, stat, mkdir, access, copyFile } from 'fs/promises';
+import { readdir, readFile, writeFile, rename, rm, stat, mkdir } from 'fs/promises';
 import * as path from 'path';
-import { commands, Disposable, extensions as Extensions, OutputChannel, window, Uri, workspace, ProgressLocation } from 'vscode';
-import { API, GitExtension, Repository } from './git';
+import { commands, Disposable, extensions as Extensions, OutputChannel, window, Uri } from 'vscode';
+import { GitExtension } from './git';
+import fetch, {Response} from 'node-fetch';
 import { Model } from './model';
 import { logTimestamp } from './util';
 interface WatCommandOptions {
@@ -14,7 +15,7 @@ interface WatCommand {
     method: Function;
     options: WatCommandOptions;
 }
-
+interface BaseObj { [key: string]: string; }
 const watCommands: WatCommand[] = [];
 
 function command(commandId: string, options: WatCommandOptions = {}): Function {
@@ -53,8 +54,41 @@ export class CommandCenter {
         }
         return fileList;
     }
+
+    async getLibraryFiles(url: Uri): Promise<BaseObj[]> {
+        const linkRex = /<li><a href="(?<href>.+)">(?<text>.+)<\/a><\/li>/gm;
+        return await fetch(url.toString(true)).then(async (res:Response) => {
+            if (res.ok) {
+                const pageText = await res.text();
+                let rtnObj: BaseObj[] = [];
+                return [...pageText.matchAll(linkRex)]
+                    .filter(v => v.groups)
+                    .reduce(async (pV, cV) => {
+                        const href = cV.groups?.href;
+                        if (href && href !== '../') {
+                            const nextUri = Uri.joinPath(url, href);
+                            if (href.substring(href.length) === '/') {
+                                return (await pV).concat(await this.getLibraryFiles(nextUri));
+                            } else {
+                                return fetch(nextUri.toString(false)).then(async r => {
+                                    (await pV).push({ [nextUri.toString(false)]: await r.text() });
+                                    return await pV;
+                                });
+                            }
+                        } else {
+                            return pV;
+                        }
+                    }, Promise.resolve(rtnObj));
+            } else {
+                return Promise.resolve([]);
+            }
+        });
+    }
+
     @command('wat.createAddon')
     async createAddon() {
+        const list = await this.getLibraryFiles(Uri.parse('https://repos.curseforge.com/wow/ace3/trunk/AceConfig-3.0'));
+        console.log(list);
         const gitExtension = Extensions.getExtension<GitExtension>('vscode.git')!.exports;
         const git = gitExtension.getAPI(1).git._model.git;
         this.outputChannel.appendLine(`${logTimestamp()}: Running command wat.createAddon`);
@@ -150,6 +184,7 @@ export class CommandCenter {
         this.outputChannel.appendLine(`${logTimestamp()}: WAT Extension: testCommand - ${text}`);
         //localize('changed', "{0} Log level changed to: {1}", logTimestamp()))//'changed', "{0} Log level changed to: {1}", logTimestamp(), LogLevel[Log.logLevel]));
     }
+    
     private createCommand(id: string, key: string, method: Function, options: WatCommandOptions): (...args: any[]) => any {
         const result = (...args: any[]) => {
             let result: Promise<any>;

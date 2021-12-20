@@ -1,8 +1,6 @@
-import { fstatSync } from "fs";
-import { TextEncoder } from "util";
-import { Disposable, Event, EventEmitter, FileChangeEvent, FileChangeType, FileStat, FileSystemError, FileSystemProvider, FileType, Uri, window, workspace as Workspace} from "vscode";
-import { Model, TocChangeEvent } from "./model";
-import { filterEvent, eventToPromise, isDescendant, pathEquals, EmptyDisposable } from "./util";
+import { Disposable, Event, EventEmitter, FileChangeEvent, FileStat, FileSystemProvider, FileType, Uri, workspace as Workspace} from "vscode";
+import { Model } from "./model";
+import { pathEquals, EmptyDisposable } from "./util";
 interface CacheRow {
     uri: Uri;
     timestamp: number;
@@ -29,16 +27,16 @@ export class WatFileSystemProvider implements FileSystemProvider {
 		setInterval(() => this.cleanup(), FIVE_MINUTES);
 	}
 
-    private onDidOpenTocFile({ toc }: TocChangeEvent): void {
+/*     private onDidOpenTocFile({ toc }: TocChangeEvent): void {
         this.changedTocRoots.add(toc.tocFile.addonFolder.fsPath);
 		this.eventuallyFireChangeEvents();
 	}
-
-	private eventuallyFireChangeEvents(): void {
+ */
+/* 	private eventuallyFireChangeEvents(): void {
 		this.fireChangeEvents();
-	}
+	} */
 
-	private async fireChangeEvents(): Promise<void> {
+/* 	private async fireChangeEvents(): Promise<void> {
 		if (!window.state.focused) {
 			const onDidFocusWindow = filterEvent(window.onDidChangeWindowState, e => e.focused);
 			await eventToPromise(onDidFocusWindow);
@@ -63,7 +61,7 @@ export class WatFileSystemProvider implements FileSystemProvider {
 		}
 
         this.changedTocRoots.clear();
-	}
+	} */
 
 	private cleanup(): void {
 		const now = new Date().getTime();
