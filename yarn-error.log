@@ -1,0 +1,218 @@
+Arguments: 
+  /home/ck/.nvm/versions/node/v16.13.1/bin/node /home/ck/.nvm/versions/node/v16.13.1/bin/yarn
+
+PATH: 
+  /home/ck/.vscode-server-insiders/bin/d12df34e31b4a018735d312a8947d79331132368/bin:/home/ck/.nvm/versions/node/v16.13.1/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/mnt/c/Program Files/Python39/Scripts/:/mnt/c/Program Files/Python39/:/mnt/c/Windows/system32:/mnt/c/Windows:/mnt/c/Windows/System32/Wbem:/mnt/c/Windows/System32/WindowsPowerShell/v1.0/:/mnt/c/Windows/System32/OpenSSH/:/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common:/mnt/c/Program Files/NVIDIA Corporation/NVIDIA NvDLISR:/mnt/c/WINDOWS/system32:/mnt/c/WINDOWS:/mnt/c/WINDOWS/System32/Wbem:/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/:/mnt/c/WINDOWS/System32/OpenSSH/:/mnt/c/Program Files/Git/cmd:/mnt/c/Program Files/PowerShell/7/:/mnt/c/Users/ck/AppData/Local/Microsoft/WindowsApps:/mnt/c/Users/ck/AppData/Local/Programs/Microsoft VS Code/bin:/mnt/c/Users/ck/AppData/Local/Programs/Microsoft VS Code Insiders/bin:/mnt/c/Users/ck/AppData/Local/Programs/oh-my-posh/bin:/mnt/c/Users/ck/AppData/Local/Programs/oh-my-posh/themes:/snap/bin
+
+Yarn version: 
+  1.22.17
+
+Node version: 
+  16.13.1
+
+Platform: 
+  linux x64
+
+Trace: 
+  Error: https://registry.yarnpkg.com/@webpack-cli%2finit: ETIMEDOUT
+      at Timeout._onTimeout (/home/ck/.nvm/versions/node/v16.13.1/lib/node_modules/yarn/lib/cli.js:141543:19)
+      at listOnTimeout (node:internal/timers:557:17)
+      at processTimers (node:internal/timers:500:7)
+
+npm manifest: 
+  {
+  	"name": "wat",
+  	"displayName": "WoW Addon Tools",
+  	"description": "",
+  	"version": "0.0.1",
+  	"engines": {
+  		"vscode": "^1.62.0"
+  	},
+  	"categories": [
+  		"Other"
+  	],
+  	"activationEvents": [
+  		"onView:watTree"
+  	],
+  	"extensionKind": [
+  		"workspace",
+  		"ui"
+  	],
+  	"main": "./dist/main.js",
+  	"contributes": {
+  		"languages": [
+  			{
+  				"id": "toc",
+  				"extensions": [
+  					".toc"
+  				],
+  				"aliases": [
+  					"Toc",
+  					"TOC"
+  				],
+  				"configuration": "./resources/language/configs/toc-language-configuration.json"
+  			},
+  			{
+  				"id": "lua",
+  				"extensions": [
+  					".lua"
+  				],
+  				"aliases": [
+  					"Lua"
+  				],
+  				"configuration": "./resources/language/configs/lua-language-configuration.json"
+  			}
+  		],
+  		"grammars": [
+  			{
+  				"path": "./resources/language/grammars/toc.tmLanguage.json",
+  				"scopeName": "source.toc",
+  				"language": "toc"
+  			},
+  			{
+  				"path": "./resources/language/grammars/lua.tmLanguage.json",
+  				"scopeName": "source.lua",
+  				"language": "lua"
+  			}
+  		],
+  		"snippets": [
+  			{
+  				"language": "lua",
+  				"path": "./resources/language/snippets/lua.json"
+  			},
+  			{
+  				"language": "toc",
+  				"path": "./resources/language/snippets/toc.json"
+  			}
+  		],
+  		"views": {
+  			"watTree": [
+  				{
+  					"id": "watTree",
+  					"name": "WoW Addon Outline"
+  				}
+  			]
+  		},
+  		"commands": [
+  			{
+  				"command": "watTree.refresh",
+  				"title": "Refresh",
+  				"icon": "$(timeline-refresh)"
+  			},
+  			{
+  				"command": "watTree.refreshNode",
+  				"title": "Refresh",
+  				"icon": "$(timeline-refresh)"
+  			},
+  			{
+  				"command": "watTree.renameNode",
+  				"title": "Rename"
+  			},
+  			{
+  				"command": "watTree.openFile",
+  				"title": "Open File"
+  			},
+  			{
+  				"command": "wat.createAddon",
+  				"title": "Create Addon"
+  			}
+  		],
+  		"menus": {
+  			"view/title": [
+  				{
+  					"command": "watTree.refresh",
+  					"when": "view == watTree",
+  					"group": "navigation"
+  				}
+  			],
+  			"view/item/context": [
+  				{
+  					"command": "watTree.openFile",
+  					"when": "viewItem == file"
+  				},
+  				{
+  					"command": "watTree.renameNode",
+  					"when": "view == watTree"
+  				},
+  				{
+  					"command": "watTree.refreshNode",
+  					"when": "view == watTree",
+  					"group": "inline"
+  				}
+  			]
+  		},
+  		"configuration": [
+  			{
+  				"title": "WoW Addon Outline",
+  				"properties": {
+  					"watTree.autorefresh": {
+  						"type": "boolean",
+  						"default": false
+  					}
+  				}
+  			}
+  		],
+  		"viewsContainers": {
+  			"activitybar": [
+  				{
+  					"id": "watTree",
+  					"title": "Addon Outline",
+  					"icon": "resources/wow.svg"
+  				}
+  			]
+  		},
+  		"viewsWelcome": [
+  			{
+  				"view": "watTree",
+  				"contents": "In order to use WoW Addon Tool's features, you can open a folder containing a TOC file or create an addon from a template.\n[Open Folder](command:vscode.openFolder)\n[Create Addon](command:wat.createAddon)\n",
+  				"when": "workbenchState == empty"
+  			}
+  		]
+  	},
+  	"scripts": {
+  		"vscode:prepublish": "npm run package",
+  		"compile": "webpack",
+  		"webpack": "webpack --mode development",
+  		"webpack-dev": "webpack --mode development --watch",
+  		"watch": "webpack --watch",
+  		"package": "webpack --mode production --devtool hidden-source-map",
+  		"compile-tests": "tsc -p . --outDir out",
+  		"watch-tests": "tsc -p . -w --outDir out",
+  		"pretest": "npm run compile-tests && npm run compile && npm run lint",
+  		"lint": "eslint src --ext ts",
+  		"test": "node ./out/test/runTest.js"
+  	},
+  	"devDependencies": {
+  		"@types/copy-webpack-plugin": "^10.1.0",
+  		"@types/byline": "^4.2.33",
+  		"@types/node-fetch": "^3.0.3",
+  		"@types/glob": "^7.1.4",
+  		"@types/mocha": "^9.0.0",
+  		"@types/node": "14.x",
+  		"@types/vscode": "^1.62.0",
+  		"@typescript-eslint/eslint-plugin": "^5.1.0",
+  		"@typescript-eslint/parser": "^5.1.0",
+  		"@vscode/test-electron": "^1.6.2",
+  		"copy-webpack-plugin": "^10.0.0",
+  		"eslint": "^8.1.0",
+  		"glob": "^7.1.7",
+  		"mocha": "^9.1.3",
+  		"ts-loader": "^9.2.5",
+  		"typescript": "^4.6.0-dev.20211219",
+  		"webpack": "^5.52.1",
+  		"webpack-cli": "^4.9.1"
+  	},
+  	"dependencies": {
+  		"@webpack-cli/init": "^1.1.3",
+  		"byline": "^5.0.0",
+  		"node-fetch": "^3.1.0",
+  		"vscode-nls": "^5.0.0",
+  		"vscode-nls-dev": "^3.3.2"
+  	}
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile

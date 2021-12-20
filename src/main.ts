@@ -1,5 +1,4 @@
 'use strict';
-
 import {
 	window as Window,
 	commands as Commands,
@@ -13,8 +12,6 @@ import { WatExtensionImpl } from './extension';
 import { WatFileSystemProvider } from './fileSystemProvider';
 import { Model } from './model';
 import { logTimestamp } from './util';
-
-
 async function createModel(context: ExtensionContext, outputChannel: OutputChannel, disposables: Disposable[]): Promise<Model> {
 	const model = new Model(context, outputChannel);
 	disposables.push(model);
@@ -40,7 +37,7 @@ async function createModel(context: ExtensionContext, outputChannel: OutputChann
 }
 
 
-export async function _activate(context: ExtensionContext): Promise<WatExtensionImpl>{
+export async function _activate(context: ExtensionContext): Promise<WatExtensionImpl> {
 	console.log(`_activate`)
 	const disposables: Disposable[] = [];
 	context.subscriptions.push(new Disposable(() => Disposable.from(...disposables).dispose()));
@@ -52,7 +49,7 @@ export async function _activate(context: ExtensionContext): Promise<WatExtension
 	try {
 		const model = await createModel(context, outputChannel, disposables);
 		return new WatExtensionImpl(model);
-	} catch (err:any){
+	} catch (err: any) {
 
 		console.warn(err.message);
 		outputChannel.appendLine(`${logTimestamp()} ${err.message}`);

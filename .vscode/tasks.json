@@ -5,6 +5,24 @@
 	"tasks": [
 		{
 			"type": "npm",
+			"script": "watch-extensionsd",
+			"label": "Ext - Build",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never",
+				"group": "buildWatchers"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [
+				"$ts-webpack-watch",
+				"$tslint-webpack-watch"
+			],
+		},
+/* 		{
+			"type": "npm",
 			"script": "watch",
 			"problemMatcher": [
 				"$ts-webpack-watch",
@@ -19,7 +37,7 @@
 				"kind": "build",
 				"isDefault": true
 			}
-		},
+		}, */
 		{
 			"type": "npm",
 			"script": "watch-tests",
