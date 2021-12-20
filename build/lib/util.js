@@ -4,9 +4,10 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildWebNodePaths = exports.acquireWebNodePaths = exports.toFileUri = exports.getElectronVersion = exports.setExecutableBit = exports.ensureDir = exports.rreddir = exports.rimraf = exports.loadSourcemaps = exports.filter = exports.incremental = exports.debounce = void 0;
+exports.buildWebNodePaths = exports.acquireWebNodePaths = exports.toFileUri = exports.getVersion = exports.getElectronVersion = exports.setExecutableBit = exports.ensureDir = exports.rreddir = exports.rimraf = exports.loadSourcemaps = exports.filter = exports.incremental = exports.debounce = void 0;
 const es = require("event-stream");
 const _debounce = require("debounce");
+const git = require("./git");
 const _filter = require("gulp-filter");
 const path = require("path");
 const fs = require("fs");
@@ -207,6 +208,14 @@ function getElectronVersion() {
     return target;
 }
 exports.getElectronVersion = getElectronVersion;
+function getVersion(root) {
+    let version = process.env['BUILD_SOURCEVERSION'];
+    if (!version || !/^[0-9a-f]{40}$/i.test(version)) {
+        version = git.getVersion(root);
+    }
+    return version;
+}
+exports.getVersion = getVersion;
 function toFileUri(filePath) {
     const match = filePath.match(/^([a-z])\:(.*)$/i);
     if (match) {

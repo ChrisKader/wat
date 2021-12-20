@@ -19,7 +19,7 @@ function withNodeDefaults(/**@type WebpackConfig*/extConfig) {
 			__dirname: false // leave the __dirname-behaviour intact
 		},
 		resolve: {
-			mainFields: ['module', 'main'],
+			mainFields: ['main'],
 			extensions: ['.ts', '.js'] // support ts-files and js-files
 		},
 		module: {
@@ -50,7 +50,13 @@ function withNodeDefaults(/**@type WebpackConfig*/extConfig) {
 		},
 		// yes, really source maps
 		devtool: 'source-map',
-		plugins: nodePlugins(extConfig.context),
+		plugins: [
+			new CopyWebpackPlugin({
+				patterns: [
+					{ from: 'src', to: '.', globOptions: { ignore: ['**/test/**', '**/*.ts'] }, noErrorOnMissing: true }
+				]
+			})
+		]//nodePlugins(extConfig.context),
 	};
 
 	return merge(defaultConfig, extConfig);

@@ -221,6 +221,7 @@ const cleanExtensionsBuildTask = task.define('clean-extensions-build', util.rimr
 const compileExtensionsBuildTask = task.define('compile-extensions-build', task.series(
 	cleanExtensionsBuildTask,
 	task.define('bundle-extensions-build', () => ext.packageLocalExtensionsStream(false).pipe(gulp.dest('.build'))),
+	task.define('bundle-this-extension-build', () => ext.packageThisExtensionsStream(false).pipe(gulp.dest('.build'))),
 	task.define('bundle-marketplace-extensions-build', () => ext.packageMarketplaceExtensionsStream(false).pipe(gulp.dest('.build'))),
 ));
 

@@ -59,6 +59,7 @@ export class CommandCenter {
 
 	async getLibraryFiles(url: Uri): Promise<BaseObj[]> {
 		const linkRex = /<li><a href="(?<href>.+)">(?<text>.+)<\/a><\/li>/gm;
+		this.outputChannel.appendLine(`${logTimestamp()}: Getting Info for ${url.toString()}`);
 		return await fetch(url.toString(true)).then(async (res: Response) => {
 			if (res.ok) {
 				const pageText = await res.text();
@@ -69,7 +70,7 @@ export class CommandCenter {
 						const href = cV.groups?.href;
 						if (href && href !== '../') {
 							const nextUri = Uri.joinPath(url, href);
-							if (href.substring(href.length) === '/') {
+							if (href.substring(href.length - 1) === '/') {
 								return (await pV).concat(await this.getLibraryFiles(nextUri));
 							} else {
 								return fetch(nextUri.toString(false)).then(async r => {
@@ -82,6 +83,7 @@ export class CommandCenter {
 						}
 					}, Promise.resolve(rtnObj));
 			} else {
+				this.outputChannel.appendLine(`${logTimestamp()}: Error Getting Info for ${url.toString()} ${res.status} ${res.statusText}`);
 				return Promise.resolve([]);
 			}
 		});
@@ -89,7 +91,7 @@ export class CommandCenter {
 
 	@command('wat.createAddon')
 	async createAddon() {
-		const list = await this.getLibraryFiles(Uri.parse('https://repos.curseforge.com/wow/ace3/trunk/AceConfig-3.0'));
+		const list = await this.getLibraryFiles(Uri.parse('https://repos.curseforge.com/wow/ace3/trunk/AceConfig-3.0/'));
 		console.log(list);
 		const gitExtension = Extensions.getExtension<GitExtension>('vscode.git')!.exports;
 		const git = gitExtension.getAPI(1).git._model.git;

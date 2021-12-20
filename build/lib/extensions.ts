@@ -292,6 +292,44 @@ function isWebExtension(manifest: IExtensionManifest): boolean {
 	return true;
 }
 
+export function packageThisExtensionsStream(forWeb: boolean): Stream {
+	const localExtensionsDescriptions = (
+		(<string[]>glob.sync('package.json'))
+			.map(manifestPath => {
+				const absoluteManifestPath = path.join(root, manifestPath);
+				const extensionPath = path.dirname(path.join(root, manifestPath));
+				const extensionName = path.basename(extensionPath);
+				return { name: extensionName, path: extensionPath, manifestPath: absoluteManifestPath };
+			})
+			.filter(({ name }) => excludedExtensions.indexOf(name) === -1)
+			.filter(({ name }) => builtInExtensions.every(b => b.name !== name))
+			.filter(({ manifestPath }) => (forWeb ? isWebExtension(require(manifestPath)) : true))
+	);
+	const localExtensionsStream = minifyExtensionResources(
+		es.merge(
+			...localExtensionsDescriptions.map(extension => {
+				return fromLocal(extension.path, forWeb)
+					.pipe(rename(p => p.dirname = `wat/${p.dirname}`));
+			})
+		)
+	);
+
+	let result: Stream;
+	if (forWeb) {
+		result = localExtensionsStream;
+	} else {
+		// also include shared production node modules
+		const productionDependencies = getProductionDependencies('extensions/');
+		const dependenciesSrc = _.flatten(productionDependencies.map(d => path.relative(root, d.path)).map(d => [`${d}/**`, `!${d}/**/{test,tests}/**`]));
+		result = es.merge(localExtensionsStream, gulp.src(dependenciesSrc, { base: '.' }));
+	}
+
+	return (
+		result
+			.pipe(util2.setExecutableBit(['**/*.sh']))
+	);
+}
+
 export function packageLocalExtensionsStream(forWeb: boolean): Stream {
 	const localExtensionsDescriptions = (
 		(<string[]>glob.sync('extensions/*/package.json'))

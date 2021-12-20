@@ -7,6 +7,7 @@
 
 import * as es from 'event-stream';
 import _debounce = require('debounce');
+import * as git from './git';
 import * as _filter from 'gulp-filter';
 import * as _ from 'underscore';
 import * as path from 'path';
@@ -251,6 +252,15 @@ export function getElectronVersion(): string {
 	const yarnrc = fs.readFileSync(path.join(root, '.yarnrc'), 'utf8');
 	const target = /^target "(.*)"$/m.exec(yarnrc)![1];
 	return target;
+}
+export function getVersion(root: string): string | undefined {
+	let version = process.env['BUILD_SOURCEVERSION'];
+
+	if (!version || !/^[0-9a-f]{40}$/i.test(version)) {
+		version = git.getVersion(root);
+	}
+
+	return version;
 }
 export function toFileUri(filePath: string): string {
 	const match = filePath.match(/^([a-z])\:(.*)$/i);

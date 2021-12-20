@@ -5,7 +5,7 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "watch-extensionsd",
+			"script": "watch",
 			"label": "Ext - Build",
 			"isBackground": true,
 			"presentation": {
