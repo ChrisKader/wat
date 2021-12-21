@@ -1,4 +1,4 @@
-import { RequestInfo, RequestInit, Response } from 'node-fetch';
+import { RequestInfo, RequestInit, Response } from 'node-fetch/@types';
 
 export interface RequestInitWithRetry extends RequestInit {
 	retries?: number;
@@ -9,9 +9,7 @@ export interface RequestInitWithRetry extends RequestInit {
 function isResponseError(candidate: any): candidate is Response {
 	return candidate.type === 'error';
 }
-async function _fetch(url: RequestInfo, init?: RequestInit) {
-	return await import('node-fetch').then(({ default: fetch }) => fetch(url, init))
-}
+
 export async function fetchAgain(url: RequestInfo, init?: RequestInitWithRetry): Promise<Response> {
 	let retry = 1
 	if (init && (init.retries && init.retries > 0)) {
@@ -25,7 +23,7 @@ export async function fetchAgain(url: RequestInfo, init?: RequestInitWithRetry):
 	let error = new Response(typeof (url) === 'string' ? url : null, { status: 0, statusText: 'unknownError' });
 	while (retry > 0) {
 		try {
-			result = await import('node-fetch').then(({ default: fetch }) => fetch(url, init))
+			result = await import('node-fetch/@types').then(({ default: fetch }) => fetch(url, init))
 			initRequest = true
 			return result
 		} catch (e: unknown) {

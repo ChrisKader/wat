@@ -220,7 +220,8 @@
   },
   "dependencies": {
     "graceful-fs": "4.2.8",
-    "node-fetch": "3.0.0"
+    "node-fetch": "3.0.0",
+    "yaml": "next"
   },
   "resolutions": {
     "elliptic": "^6.5.3",

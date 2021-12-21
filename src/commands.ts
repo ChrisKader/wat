@@ -5,7 +5,7 @@ import { GitExtension } from './git';
 import { fetchAgain } from './nodeFetchRetry';
 import { Model } from './model';
 import { logTimestamp } from './util';
-import { Response } from 'node-fetch';
+import { Response } from 'node-fetch/';
 interface WatCommandOptions {
 	uri?: boolean;
 }
