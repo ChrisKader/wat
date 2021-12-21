@@ -1,14 +1,13 @@
 //@ts-check
+/** @typedef {import('webpack').Configuration} WebpackConfig **/
 
 'use strict';
 
 const path = require('path');
 const fs = require('fs');
 const merge = require('merge-options');
-const CopyWebpackPlugin = require("copy-webpack-plugin");
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 const { DefinePlugin } = require('webpack');
-//@ts-check
-/** @typedef {import('webpack').Configuration} WebpackConfig **/
 
 function withNodeDefaults(/**@type WebpackConfig*/extConfig) {
 	/** @type WebpackConfig */
@@ -19,7 +18,7 @@ function withNodeDefaults(/**@type WebpackConfig*/extConfig) {
 			__dirname: false // leave the __dirname-behaviour intact
 		},
 		resolve: {
-			mainFields: ['main'],
+			mainFields: ['module', 'main'],
 			extensions: ['.ts', '.js'] // support ts-files and js-files
 		},
 		module: {
@@ -45,22 +44,17 @@ function withNodeDefaults(/**@type WebpackConfig*/extConfig) {
 			// all output goes into `dist`.
 			// packaging depends on that and this must always be like it
 			filename: '[name].js',
-			path: 'dist',
+			path: path.join(extConfig.context, 'dist'),
 			libraryTarget: 'commonjs',
 		},
 		// yes, really source maps
 		devtool: 'source-map',
-		plugins: [
-			new CopyWebpackPlugin({
-				patterns: [
-					{ from: 'src', to: '.', globOptions: { ignore: ['**/test/**', '**/*.ts'] }, noErrorOnMissing: true }
-				]
-			})
-		]//nodePlugins(extConfig.context),
+		plugins: []//nodePlugins(extConfig.context),
 	};
 
 	return merge(defaultConfig, extConfig);
 }
+
 function nodePlugins(context) {
 	// Need to find the top-most `package.json` file
 	const folderName = path.relative(__dirname, context).split(/[\\\/]/)[0];
@@ -126,7 +120,7 @@ function withBrowserDefaults(/**@type WebpackConfig*/extConfig, /** @type Additi
 		},
 		// yes, really source maps
 		devtool: 'source-map',
-		plugins: browserPlugins
+		plugins: []//browserPlugins
 	};
 
 	return merge(defaultConfig, extConfig);
@@ -151,4 +145,4 @@ module.exports = withNodeDefaults;
 module.exports.node = withNodeDefaults;
 module.exports.browser = withBrowserDefaults;
 module.exports.nodePlugins = nodePlugins;
-module.exports.browserPlugins = browserPlugins;
+//module.exports.browserPlugins = browserPlugins;

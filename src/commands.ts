@@ -2,9 +2,10 @@ import { realfs } from './fs';
 import * as path from 'path';
 import { commands, Disposable, extensions as Extensions, OutputChannel, window, Uri } from 'vscode';
 import { GitExtension } from './git';
-import fetch, { Response } from 'node-fetch';
+import { fetchAgain } from './nodeFetchRetry';
 import { Model } from './model';
 import { logTimestamp } from './util';
+import { Response } from 'node-fetch';
 interface WatCommandOptions {
 	uri?: boolean;
 }
@@ -27,7 +28,6 @@ function command(commandId: string, options: WatCommandOptions = {}): Function {
 		watCommands.push({ commandId, key, method: descriptor.value, options });
 	};
 }
-
 
 export class CommandCenter {
 	private disposables: Disposable[];
@@ -59,8 +59,8 @@ export class CommandCenter {
 
 	async getLibraryFiles(url: Uri): Promise<BaseObj[]> {
 		const linkRex = /<li><a href="(?<href>.+)">(?<text>.+)<\/a><\/li>/gm;
-		this.outputChannel.appendLine(`${logTimestamp()}: Getting Info for ${url.toString()}`);
-		return await fetch(url.toString(true)).then(async (res: Response) => {
+		this.outputChannel.appendLine(`${logTimestamp()}: Getting info for external ${url.toString()}`);
+		return await fetchAgain(url.toString(true)).then(async (res: Response) => {
 			if (res.ok) {
 				const pageText = await res.text();
 				let rtnObj: BaseObj[] = [];
@@ -71,9 +71,11 @@ export class CommandCenter {
 						if (href && href !== '../') {
 							const nextUri = Uri.joinPath(url, href);
 							if (href.substring(href.length - 1) === '/') {
+								this.outputChannel.appendLine(`${logTimestamp()}: Getting folder ${nextUri} for external ${url}`);
 								return (await pV).concat(await this.getLibraryFiles(nextUri));
 							} else {
-								return fetch(nextUri.toString(false)).then(async r => {
+								this.outputChannel.appendLine(`${logTimestamp()}: Getting file ${nextUri} for external ${url}`);
+								return fetchAgain(nextUri.toString(false)).then(async r => {
 									(await pV).push({ [nextUri.toString(false)]: await r.text() });
 									return await pV;
 								});
@@ -84,9 +86,12 @@ export class CommandCenter {
 					}, Promise.resolve(rtnObj));
 			} else {
 				this.outputChannel.appendLine(`${logTimestamp()}: Error Getting Info for ${url.toString()} ${res.status} ${res.statusText}`);
-				return Promise.resolve([]);
+				return [];
 			}
-		});
+		}).catch((reason) => {
+			this.outputChannel.appendLine(`${logTimestamp()}: Error Getting Info for ${url.toString()} ${reason}`);
+			return []
+		})
 	}
 
 	@command('wat.createAddon')

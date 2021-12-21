@@ -4,15 +4,30 @@
 
 //const withDefaults = require('./shared.webpack.config');
 //const CopyWebpackPlugin = require("copy-webpack-plugin");
-module.exports = {
-	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
-	target: 'node', // extensions run in a node context
+
+'use strict';
+
+const withDefaults = require('./shared.webpack.config');
+const copyPlugin = require("copy-webpack-plugin");
+const path = require('path');
+module.exports = withDefaults({
+	mode: 'development',
+	target: 'node',
+	entry: './src/main.ts',
+
 	node: {
 		__dirname: false // leave the __dirname-behaviour intact
 	},
+	context: __dirname,
 	resolve: {
-		mainFields: ['main'],
 		extensions: ['.ts', '.js'] // support ts-files and js-files
+	},
+	output: {
+		// the bundle is stored in the 'dist' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/
+		path: path.resolve(__dirname, 'dist'),
+		filename: 'main.js',
+		libraryTarget: 'commonjs2',
+		devtoolModuleFilenameTemplate: "../[resource-path]",
 	},
 	module: {
 		rules: [{
@@ -25,22 +40,19 @@ module.exports = {
 				options: {
 					compilerOptions: {
 						'sourceMap': true,
+						//"module": "es6" // override `tsconfig.json` so that TypeScript emits native JavaScript modules.
 					}
 				}
 			}]
 		}]
 	},
-	externals: {
-		'vscode': 'commonjs vscode', // ignored because it doesn't exist,
-	},
-	output: {
-		// all output goes into `dist`.
-		// packaging depends on that and this must always be like it
-		filename: '[name].js',
-		path: 'dist',
-		libraryTarget: 'commonjs',
-	},
 	// yes, really source maps
 	devtool: 'source-map',
-	plugins: []//nodePlugins(extConfig.context),
-};
+	plugins: [
+		new copyPlugin({
+			patterns: [
+				{ from: "resources", to: "resources" },
+			],
+		}),
+	],
+});
