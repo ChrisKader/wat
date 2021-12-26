@@ -16,7 +16,10 @@ interface WatCommand {
 	method: Function;
 	options: WatCommandOptions;
 }
-interface BaseObj { [key: string]: string; }
+interface BaseObj {
+	baseUrl: string;
+	files: Map<string, string>;
+}
 const watCommands: WatCommand[] = [];
 
 function command(commandId: string, options: WatCommandOptions = {}): Function {
@@ -28,6 +31,7 @@ function command(commandId: string, options: WatCommandOptions = {}): Function {
 		watCommands.push({ commandId, key, method: descriptor.value, options });
 	};
 }
+
 
 export class CommandCenter {
 	private disposables: Disposable[];
@@ -57,46 +61,52 @@ export class CommandCenter {
 		return fileList;
 	}
 
-	async getLibraryFiles(url: Uri): Promise<BaseObj[]> {
+	async getSvnLibrary(baseUrl: Uri): Promise<BaseObj> {
 		const linkRex = /<li><a href="(?<href>.+)">(?<text>.+)<\/a><\/li>/gm;
-		this.outputChannel.appendLine(`${logTimestamp()}: Getting info for external ${url.toString()}`);
-		return await fetchAgain(url.toString(true)).then(async (res: Response) => {
+		let rtnObj = {
+			baseUrl: baseUrl.toString(true),
+			files: new Map<string, string>()
+		};
+		return await fetchAgain(baseUrl.toString(true)).then(async (res: Response) => {
 			if (res.ok) {
 				const pageText = await res.text();
-				let rtnObj: BaseObj[] = [];
 				return [...pageText.matchAll(linkRex)]
 					.filter(v => v.groups)
-					.reduce(async (pV, cV) => {
-						const href = cV.groups?.href;
+					.reduce(async (rtnObj, currentResult) => {
+						const href = currentResult.groups?.href;
+						// check if we got a link and ensure its not a link that goes backwards.
 						if (href && href !== '../') {
-							const nextUri = Uri.joinPath(url, href);
-							if (href.substring(href.length - 1) === '/') {
-								this.outputChannel.appendLine(`${logTimestamp()}: Getting folder ${nextUri} for external ${url}`);
-								return (await pV).concat(await this.getLibraryFiles(nextUri));
+							// Join new link with the base url to get the full path.
+							const nextUri = Uri.joinPath(baseUrl, href);
+							// if the link ends with a /, then its a directory.
+							if (href.substring(href.length) === '/') {
+								const dirEntries = (await this.getSvnLibrary(nextUri));
+								(await rtnObj).files = Object.assign({}, (await rtnObj).files, dirEntries.files);
+								return rtnObj;
+								//return (await fileArray).concat(await this.getSvnLibrary(nextUri));
 							} else {
-								this.outputChannel.appendLine(`${logTimestamp()}: Getting file ${nextUri} for external ${url}`);
+								// if not a directory, attempt to fetch the text value of the file and add it to the array.
 								return fetchAgain(nextUri.toString(false)).then(async r => {
-									(await pV).push({ [nextUri.toString(false)]: await r.text() });
-									return await pV;
+									//(await fileArray).push({ [nextUri.toString(false)]: await r.text() });
+									(await rtnObj).files.set(href, await r.text());
+									return rtnObj;
 								});
 							}
 						} else {
-							return pV;
+							return rtnObj;
 						}
 					}, Promise.resolve(rtnObj));
 			} else {
-				this.outputChannel.appendLine(`${logTimestamp()}: Error Getting Info for ${url.toString()} ${res.status} ${res.statusText}`);
-				return [];
+				return Promise.reject(res.statusText);
 			}
-		}).catch((reason) => {
-			this.outputChannel.appendLine(`${logTimestamp()}: Error Getting Info for ${url.toString()} ${reason}`);
-			return []
-		})
+		}).catch((r) => {
+			throw Error(`${r}`);
+		});
 	}
 
 	@command('wat.createAddon')
 	async createAddon() {
-		const list = await this.getLibraryFiles(Uri.parse('https://repos.curseforge.com/wow/ace3/trunk/AceConfig-3.0/'));
+		const list = await this.getSvnLibrary(Uri.parse('https://repos.curseforge.com/wow/ace3/trunk/AceConfig-3.0/'));
 		console.log(list);
 		const gitExtension = Extensions.getExtension<GitExtension>('vscode.git')!.exports;
 		const git = gitExtension.getAPI(1).git._model.git;
