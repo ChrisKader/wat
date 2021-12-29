@@ -1,6 +1,6 @@
 import { commands as Commands, Disposable, Event, EventEmitter, OutputChannel, workspace as Workspace, Uri, window as Window, WorkspaceFoldersChangeEvent, TextEditor, ExtensionContext, FileSystemWatcher, RelativePattern, WorkspaceFolder } from "vscode";
 import { WatOutputChannel } from './main';
-import { parsePkgMeta } from './packager';
+import { parsePkgMeta, WowPack } from './packager';
 import { TocOutline, TocOutlineProvider } from "./tocOutline";
 import { anyEvent, dispose, eventToPromise, filterEvent, isDescendant, logTimestamp } from "./util";
 import { State } from "./wat";
@@ -36,6 +36,8 @@ export class Model {
 
 	private _WorkspaceWatchers = new Map<string, FileSystemWatcher>()
 
+	private pkgMetaFiles: WowPack[] = []
+
 	private _fileWatchPatterns = [
 		{ fileType: 'pkgmeta', pattern: '**/.pkgmeta*' },
 		{ fileType: 'pkgmeta', pattern: '**/pkgmeta*.yaml' },
@@ -47,11 +49,14 @@ export class Model {
 		Commands.executeCommand('setContext', 'wat.state', state);
 	}
 
+	get statusBarText() {
+		return `$(lightbulb) ${this.tocOutlineProvider.getTocOutlines().length} TOC Files / ${this.pkgMetaFiles.length} PkgMeta Files`
+	}
+
 	get isInitialized(): Promise<void> {
 		if (this._state === 'initialized') {
 			return Promise.resolve();
 		}
-
 		return eventToPromise(filterEvent(this.onDidChangeState, s => s === 'initialized')) as Promise<any>;
 	}
 
@@ -60,15 +65,18 @@ export class Model {
 
 	private addTocFile(tocOutline: TocOutline) {
 		this.tocOutlineProvider.addTocOutline(tocOutline)
+		this.statusBarItem.text = this.statusBarText
 	}
 
 	private async fsWatcherEventProcessor(uri: Uri, event: string, fileType: string) {
 		this.outputChannel.appendLine(`${uri.fsPath} ${event} ${fileType}`, 'model.ts', 0)
 		if (fileType === 'pkgmeta') {
-			const newPkgMetaFile = await parsePkgMeta(uri, {}, this.outputChannel)
-			console.log(newPkgMetaFile)
+			this.pkgMetaFiles.push(await parsePkgMeta(uri, {}, this.outputChannel))
+			console.log(this.pkgMetaFiles)
+			this.statusBarItem.text = this.statusBarText
 		} else if (fileType === 'toc') {
 			this.parseToc(uri)
+			this.statusBarItem.text = this.statusBarText
 		}
 	}
 
@@ -132,7 +140,7 @@ export class Model {
 				const root = folder.uri.fsPath;
 				this._fileWatchPatterns.map(async p => (await Workspace.findFiles(new RelativePattern(folder, p.pattern))).map(f => this.fsWatcherEventProcessor(f, 'intial', p.fileType)))
 			}));
-			this.statusBarItem.text = `$(lightbulb) Files Loaded`
+			this.statusBarItem.text = `$(lightbulb) ${this.tocOutlineProvider.getTocOutlines().length} TOC Files Loaded`
 		}
 	}
 
@@ -157,8 +165,6 @@ export class Model {
 			const view = Window.createTreeView('watTree', { treeDataProvider: this.tocOutlineProvider });
 			Commands.registerCommand('watTree.refresh', () => this.tocOutlineProvider.refresh());
 			Commands.registerCommand('watTree.openFile', (s) => this.tocOutlineProvider.openFile(s));
-			//Commands.registerCommand('watTree.refreshNode', offset => this.tocOutlineProvider.refresh(offset));
-			//Commands.registerCommand('watTree.renameNode', offset => this.tocOutlineProvider.rename(offset));
 			context.subscriptions.push(view);
 			this.tocOutlineProvider.refresh()
 		}
@@ -200,54 +206,6 @@ export class Model {
 		} catch (ex) {
 
 		}
-	}
-
-	/* async openToc(tocPath: string): Promise<void> {
-		if (this.getToc(tocPath)) {
-			return;
-		}
-		// TODO: Add config
-
-		if (!Workspace.isTrusted) {
-			// TODO: Add error for untrusted Workspace.
-			try {
-
-			} catch {
-
-			}
-		}
-
-		try {
-			const tocRoot = Uri.file(tocPath).fsPath;
-
-			if (this.getToc(tocRoot)) {
-				return;
-			}
-			const tocFileContents = await Promise.resolve(Workspace.fs.readFile(Uri.file(tocPath)).then(v => {
-				return v.toString();
-			}));
-			const tocOutline = new TocOutline(Uri.file(tocPath), tocFileContents);
-
-			this.open(tocOutline);
-			//tocOutline.status(); // do not await this, we want SCM to know about the repo asap
-		} catch (ex) {
-
-		}
-	} */
-
-	private open(toc: TocOutline): void {
-		this.outputChannel.appendLine(`Open Toc: ${toc.uri.fsPath}`, 'model.ts');
-
-		const dispose = () => {
-			this.parsedTocs = this.parsedTocs.filter(e => e !== openToc);
-			this._onDidCloseTocFile.fire(toc.uri);
-		};
-
-		const openToc: ParsedToc = { tocOutline: toc, dispose };
-		this.parsedTocs.push(openToc);
-		this._onDidOpenTocFile.fire(openToc.tocOutline);
-		this.addTocFile(openToc.tocOutline)
-		this.tocOutlineProvider.refresh()
 	}
 
 	private getToc(path: string): TocOutline | undefined;

@@ -149,6 +149,11 @@ export class TocOutlineExpandedField extends TreeItem {
 			const fileUri = Uri.file(Join(addonDirectory, fieldName.toString().replace(/\\/gm, '/')));
 			this.command = { command: 'vscode.open', title: "Open File", arguments: [fileUri] };
 			this.resourceUri = fileUri;
+			if (fileUri.fsPath.indexOf('.xml') > - 1) {
+				Workspace.fs.readFile(this.resourceUri).then((v) => {
+					console.log(v.toString())
+				})
+			}
 			/* 			let z = tocFile.checkFileExists(this.resourceUri).then()
 						if (!tocFile.checkFileExists(this.resourceUri)) {
 							tocFile.addMissingFiles([this.resourceUri]);
@@ -340,16 +345,6 @@ export class TocOutlineProvider implements TreeDataProvider<TocOutlineTreeItem> 
 	}
 
 	refresh(tocUriStr?: Uri) {
-
-		//.findFiles(new RelativePattern(Workspace.workspaceFolders![0],'**/*.toc')).then(tocUris => {
-		/* 			tocUris.map(tocUri => {
-						Workspace.fs.readFile(tocUri).then(tocFileContents => {
-							this.addTocOutline(new TocOutline(tocUri, tocFileContents.toString()));
-						}, reason => {
-							throw Error(reason);
-						});
-					});
-				}); */
 		this._onDidChangeTreeData.fire();
 		if (tocUriStr) {
 		}
