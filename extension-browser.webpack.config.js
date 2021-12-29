@@ -9,7 +9,7 @@ module.exports = withBrowserDefaults({
 	entry: './src/extension.ts',
 	resolve: {
 		alias: {
-			'node-fetch': path.resolve(__dirname, 'node_modules/node-fetch/browser.js'),
+			'node-fetch': path.resolve(__dirname, 'node_modules/node-fetch/index.js'),
 		}
 	}
 });

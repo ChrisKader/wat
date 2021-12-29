@@ -65,10 +65,6 @@
       }
     },
     {
-      "match":".+StopMotion.lua$",
-      "name":"invalid.missing-reference.toc"
-    },
-    {
       "match":"^[\\S]+\\.([a-zA-Z]{3})$",
       "name": "keyword.operator.toc"
     },

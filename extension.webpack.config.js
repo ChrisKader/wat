@@ -16,10 +16,11 @@ module.exports = withDefaults({
 	entry: './src/main.ts',
 
 	node: {
-		__dirname: false // leave the __dirname-behaviour intact
+		__dirname: true // leave the __dirname-behaviour intact
 	},
 	context: __dirname,
 	resolve: {
+		mainFields: ['module', 'main'],
 		extensions: ['.ts', '.js'] // support ts-files and js-files
 	},
 	output: {

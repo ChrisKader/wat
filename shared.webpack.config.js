@@ -15,10 +15,10 @@ function withNodeDefaults(/**@type WebpackConfig*/extConfig) {
 		mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
 		target: 'node', // extensions run in a node context
 		node: {
-			__dirname: false // leave the __dirname-behaviour intact
+			__dirname: true // leave the __dirname-behaviour intact
 		},
 		resolve: {
-			mainFields: ['module', 'main'],
+			mainFields: ['module', 'main', 'types'],
 			extensions: ['.ts', '.js'] // support ts-files and js-files
 		},
 		module: {
@@ -84,6 +84,7 @@ function withBrowserDefaults(/**@type WebpackConfig*/extConfig, /** @type Additi
 			mainFields: ['browser', 'module', 'main'],
 			extensions: ['.ts', '.js'], // support ts-files and js-files
 			fallback: {
+				'node-fetch': require.resolve('node_modules/node-fetch/index.js'),
 				'path': require.resolve('path-browserify'),
 				'util': require.resolve('util')
 			}

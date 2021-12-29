@@ -1,4 +1,4 @@
-import { RequestInfo, RequestInit, Response } from 'node-fetch/@types';
+import { RequestInfo, RequestInit, Response } from 'node-fetch';
 
 export interface RequestInitWithRetry extends RequestInit {
 	retries?: number;
@@ -9,9 +9,9 @@ export interface RequestInitWithRetry extends RequestInit {
 function isResponseError(candidate: any): candidate is Response {
 	return candidate.type === 'error';
 }
-
+export interface FetchAgainResponse extends Response { }
 export async function fetchAgain(url: RequestInfo, init?: RequestInitWithRetry): Promise<Response> {
-	let retry = 1
+	let retry = 3
 	if (init && (init.retries && init.retries > 0)) {
 		retry = init.retries
 	}
@@ -23,8 +23,9 @@ export async function fetchAgain(url: RequestInfo, init?: RequestInitWithRetry):
 	let error = new Response(typeof (url) === 'string' ? url : null, { status: 0, statusText: 'unknownError' });
 	while (retry > 0) {
 		try {
-			result = await import('node-fetch/@types').then(({ default: fetch }) => fetch(url, init))
+			result = await import('node-fetch').then(({ default: fetch }) => fetch(url, init))
 			initRequest = true
+			retry = 0
 			return result
 		} catch (e: unknown) {
 			//TODO: add options for callback.
@@ -37,10 +38,8 @@ export async function fetchAgain(url: RequestInfo, init?: RequestInitWithRetry):
 			}
 
 			if (init && init.retryDelay) {
-				console.log(`fetchAgain pausing for ${init.retryDelay} before retrying`)
 				await sleep(init.retryDelay)
 			}
-			console.log(`Fetching ${url} ${retry} more time(s)`)
 		}
 	}
 	return isError ? error : result

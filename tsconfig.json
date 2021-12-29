@@ -22,6 +22,8 @@
 			"ES2020.Symbol.WellKnown",
 			"ES2020.Intl"
 		],
+		"typeRoots": ["node_modules/node-fetch/@types/index.d.ts"],
+		"esModuleInterop":true,
 		"module": "commonjs",
 		"moduleResolution": "node",
 		"strict": true,
