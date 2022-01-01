@@ -84,19 +84,6 @@
         "icon": "$(timeline-refresh)"
       },
       {
-        "command": "watTree.refreshNode",
-        "title": "Refresh",
-        "icon": "$(timeline-refresh)"
-      },
-      {
-        "command": "watTree.renameNode",
-        "title": "Rename"
-      },
-      {
-        "command": "watTree.openFile",
-        "title": "Open File"
-      },
-      {
         "command": "wat.createAddon",
         "title": "Create Addon"
       }
@@ -109,21 +96,7 @@
           "group": "navigation"
         }
       ],
-      "view/item/context": [
-        {
-          "command": "watTree.openFile",
-          "when": "viewItem == file"
-        },
-        {
-          "command": "watTree.renameNode",
-          "when": "view == watTree"
-        },
-        {
-          "command": "watTree.refreshNode",
-          "when": "view == watTree",
-          "group": "inline"
-        }
-      ]
+      "view/item/context": []
     },
     "configuration": [
       {

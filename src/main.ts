@@ -1,11 +1,13 @@
 'use strict';
 
 import { CommandCenter } from './commands';
-import { WatDecorations } from './decorationProvider';
 import { WatExtensionImpl } from './extension';
 import { WatFileSystemProvider } from './fileSystemProvider';
 import { Model } from './model';
 import { logTimestamp } from './util';
+import * as nls from 'vscode-nls';
+
+let localize = nls.config({})();
 
 import {
 	commands as Commands,
@@ -15,7 +17,7 @@ import {
 	StatusBarItem,
 	window as Window,
 } from 'vscode';
-import { TocOutlineProvider } from './tocOutline';
+import { TocOutlineProvider } from './tocOutlineProvider';
 
 let _context: ExtensionContext;
 
@@ -60,7 +62,6 @@ async function createModel(context: ExtensionContext, outputChannel: WatOutputCh
 	disposables.push(
 		model,
 		new CommandCenter(model, outputChannel),
-		new WatDecorations(model),
 		new WatFileSystemProvider(model),
 	);
 
@@ -71,7 +72,7 @@ export async function _activate(context: ExtensionContext): Promise<WatExtension
 	context.globalState.update('loadStatus', 'loading')
 
 	const { displayName, name, version } = require('../package.json') as { displayName: string, name: string, version: string };
-	const outputChannel = new WatOutputChannel('WoW Addon Tools', displayName, name, version)
+	const outputChannel = new WatOutputChannel(localize('outputChannelName', 'WoW Addon Tools'), displayName, name, version)
 
 	outputChannel.appendLine(`${displayName}(${name}):${version}`, 'main.ts', 2)
 	outputChannel.appendLine(`_activate function started`, 'main.ts', 0)

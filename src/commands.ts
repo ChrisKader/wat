@@ -6,7 +6,6 @@ import { fetchAgain, FetchAgainResponse } from './nodeFetchRetry';
 import { Model } from './model';
 import { logTimestamp, mkdirp } from './util';
 import { WatOutputChannel } from './main';
-import { WatDecorations } from './decorationProvider';
 interface WatCommandOptions {
 	uri?: boolean;
 }

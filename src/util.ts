@@ -3,10 +3,14 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Event, Disposable, EventEmitter } from 'vscode';
+import { Event, Disposable, EventEmitter, workspace as Workspace, Uri } from 'vscode';
 import { dirname, sep } from 'path';
 import { Readable } from 'stream';
 import { MakeDirectoryOptions, promises as fs } from 'fs';
+
+export async function readFileToString(uri: Uri) {
+	return (await Workspace.fs.readFile(uri)).toString()
+}
 
 export function log(...args: any[]): void {
 	console.log.apply(console, ['git:', ...args]);

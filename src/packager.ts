@@ -188,7 +188,7 @@ const regExObj = {
 	oldReposRegex: /(?:.*(?<type>(?:git|svn|hg))(?<path>\.(?:curseforge|wowace)\.com\/.+)\/mainline(?<end>\/trunk)?)/,
 	svnCheckRegex: /^(?:svn|.+):\/{2}.+\..+(?:(?:.+)?\/trunk\/)/
 }
-class WowPack {
+export class WowPack {
 	private _directives: {
 		"package-as": string;
 		"externals"?: PkgMetaExternal;

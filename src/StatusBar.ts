@@ -1,4 +1,16 @@
-import { StatusBarItem, window as Window } from 'vscode'
+import { Command, Disposable, EventEmitter, Event, StatusBarItem, window as Window } from 'vscode'
+import { WowPack } from './packager'
+import { TocOutline } from './tocOutlineProvider'
+
+
+interface WatStatusBarState {
+	readonly enabled: boolean;
+	readonly isParseRunning: boolean;
+	readonly hasTocFiles: boolean;
+	readonly hasPkgMetaFiles: boolean;
+	readonly PkgMetaFiles: WowPack[],
+	readonly TocFiles: TocOutline[]
+}
 
 export class WatStatusBarItem {
 	private readonly _statusBarItem: StatusBarItem

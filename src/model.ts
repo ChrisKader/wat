@@ -1,11 +1,10 @@
-import { commands as Commands, Disposable, Event, EventEmitter, OutputChannel, workspace as Workspace, Uri, window as Window, WorkspaceFoldersChangeEvent, TextEditor, ExtensionContext, FileSystemWatcher, RelativePattern, WorkspaceFolder } from "vscode";
+import { commands as Commands, Disposable, Event, EventEmitter, OutputChannel, workspace as Workspace, Uri, window as Window, WorkspaceFoldersChangeEvent, TextEditor, ExtensionContext, FileSystemWatcher, RelativePattern, WorkspaceFolder, workspace } from "vscode";
 import { WatOutputChannel } from './main';
 import { parsePkgMeta } from './packager';
-import { TocOutline, TocOutlineProvider } from "./tocOutline";
+import { TocOutline, TocOutlineProvider } from "./tocOutlineProvider";
 import { anyEvent, dispose, eventToPromise, filterEvent, isDescendant, logTimestamp } from "./util";
 import { State } from "./wat";
-import { WatStatusBarItem } from './watStatusBarItem';
-
+import { WatDecorationProvider } from './decorationProvider'
 interface ParsedToc extends Disposable {
 	tocOutline: TocOutline
 }
@@ -14,7 +13,8 @@ export interface TocChangeEvent {
 	toc: TocOutline;
 	uri: Uri;
 }
-
+const pkgMetaTocRegEx = /(.+\.toc)|(\.?pkgmeta.*(\.yaml)?)/;
+const pkgMetaTocGlob = '**/{*.toc,.pkgmeta*,pkgmeta*.yaml}'
 export class Model {
 	private _onDidOpenTocFile = new EventEmitter<TocOutline>();
 	readonly onDidOpenTocFile: Event<TocOutline> = this._onDidOpenTocFile.event;
@@ -34,85 +34,42 @@ export class Model {
 	private _state: State = 'uninitialized';
 	get state(): State { return this._state; }
 
-	private _WorkspaceWatchers = new Map<string, FileSystemWatcher>()
-
 	private _fileWatchPatterns = [
 		{ fileType: 'pkgmeta', pattern: '**/.pkgmeta*' },
 		{ fileType: 'pkgmeta', pattern: '**/pkgmeta*.yaml' },
 		{ fileType: 'toc', pattern: '**/*.toc' }
 	]
-	setState(state: State): void {
-		this._state = state;
-		this._onDidChangeState.fire(state);
-		Commands.executeCommand('setContext', 'wat.state', state);
-	}
-
-	get isInitialized(): Promise<void> {
-		if (this._state === 'initialized') {
-			return Promise.resolve();
-		}
-
-		return eventToPromise(filterEvent(this.onDidChangeState, s => s === 'initialized')) as Promise<any>;
-	}
 
 	private disposables: Disposable[] = [];
-	statusBarItem: WatStatusBarItem
-
-	private addTocFile(tocOutline: TocOutline) {
-		this.tocOutlineProvider.addTocOutline(tocOutline)
-	}
-
-	private async fsWatcherEventProcessor(uri: Uri, event: string, fileType: string) {
-		this.outputChannel.appendLine(`${uri.fsPath} ${event} ${fileType}`, 'model.ts', 0)
-		if (fileType === 'pkgmeta') {
+	decorationProvider = new WatDecorationProvider()
+	private async onPossibleWatchedFileChange(uri: Uri) {
+		this.decorationProvider.updateMissingFile(uri);
+		this.outputChannel.appendLine(`onPossibleWatchedFileChange ${uri.fsPath}`, 'model.ts', 0)
+		if (/\.?pkgmeta.*(?:\.yaml)?/.test(uri.fsPath)) {
 			const newPkgMetaFile = await parsePkgMeta(uri, {}, this.outputChannel)
 			console.log(newPkgMetaFile)
-		} else if (fileType === 'toc') {
-			this.parseToc(uri)
+			this.tocOutlineProvider.refresh()
+		} else if (/.+\.toc/.test(uri.fsPath)) {
+			this.tocOutlineProvider.addTocFile(uri)
+			this.tocOutlineProvider.refresh()
 		}
 	}
 
-	private buildWatcherString(uri: Uri, pattern: string) {
-		return `${uri.fsPath}-${pattern}`
-	}
-
-
 	private async onDidChangeWorkspaceFolders({ added, removed }: WorkspaceFoldersChangeEvent): Promise<void> {
-		added.map(v => {
-			this._fileWatchPatterns.map(filePattern => {
-				const watcherString = this.buildWatcherString(v.uri, filePattern.pattern)
-				const fsWatcher = Workspace.createFileSystemWatcher(new RelativePattern(v, filePattern.pattern))
-				fsWatcher.onDidChange(e => this.fsWatcherEventProcessor(e, 'onDidChange', filePattern.fileType), undefined, this.disposables)
-				fsWatcher.onDidCreate(e => this.fsWatcherEventProcessor(e, 'onDidCreate', filePattern.fileType), undefined, this.disposables)
-				fsWatcher.onDidDelete(e => this.fsWatcherEventProcessor(e, 'onDidDelete', filePattern.fileType), undefined, this.disposables)
-				this._WorkspaceWatchers.set(watcherString, fsWatcher)
+		added.map(workspaceFolder => {
+			Workspace.findFiles(new RelativePattern(workspaceFolder, pkgMetaTocGlob)).then(fileUris => {
+				fileUris.map(fileUri => {
+					this.onPossibleWatchedFileChange(fileUri)
+				})
 			})
 		});
 
-		removed.map(v => {
-			this._fileWatchPatterns.map(filePattern => {
-				const watcherString = this.buildWatcherString(v.uri, filePattern.pattern)
-				this._WorkspaceWatchers.get(watcherString)?.dispose()
-			})
+		removed.map(async workspaceFolder => {
+			(await Workspace.findFiles(new RelativePattern(workspaceFolder, pkgMetaTocGlob)))
+				.map(async fileUri => {
+					this.tocOutlineProvider.getTocOutline(fileUri)?.dispose()
+				})
 		})
-
-		const possibleTocFolders = added
-			.filter(folder => !this.getParsedToc(folder.uri));
-
-		const activeTocsList = Window.visibleTextEditors
-			.map(editor => this.getToc(editor.document.uri))
-			.filter(tocOutline => !!tocOutline) as TocOutline[];
-
-		const activeTocs = new Set<TocOutline>(activeTocsList);
-
-		removed
-			.map(folder => this.getParsedToc(folder.uri))
-			.filter(r => !!r)
-			.filter(r => !activeTocs.has(r!.tocOutline))
-			.filter(r => !(Workspace.workspaceFolders || []).some(f => isDescendant(f.uri.fsPath, r!.tocOutline.tocFile.addonFolder.fsPath)))
-			.forEach(r => r?.dispose());
-
-		//await Promise.all(possibleTocFolders.map(p => this.openToc(p.uri.fsPath)));
 	}
 
 	private async onDidChangeVisibleTextEditors(editors: readonly TextEditor[]): Promise<void> {
@@ -122,18 +79,19 @@ export class Model {
 		}
 	}
 
+	private onDidChangeConfiguration(): void {
+		//TODO: Add Logic for any config changes.
+
+	}
+
 	private async initialWorkspaceScan() {
-		if (Workspace.workspaceFolders) {
-			this.statusBarItem.text = '$(sync~spin) Loading Workspace..'
-			this.statusBarItem.show = true
-			this.onDidChangeWorkspaceFolders({ added: Workspace.workspaceFolders, removed: [] })
-			this.onDidChangeVisibleTextEditors(Window.visibleTextEditors)
-			await Promise.all((Workspace.workspaceFolders).map(async folder => {
-				const root = folder.uri.fsPath;
-				this._fileWatchPatterns.map(async p => (await Workspace.findFiles(new RelativePattern(folder, p.pattern))).map(f => this.fsWatcherEventProcessor(f, 'intial', p.fileType)))
-			}));
-			this.statusBarItem.text = `$(lightbulb) Files Loaded`
-		}
+		this.onDidChangeWorkspaceFolders({ added: Workspace.workspaceFolders!, removed: [] })
+		this.onDidChangeVisibleTextEditors(Window.visibleTextEditors)
+	}
+
+	private checkifInWorkspace(uri: Uri) {
+		if (!Workspace.workspaceFolders) return false;
+		return typeof (Workspace.getWorkspaceFolder(uri)) !== 'undefined'
 	}
 
 	constructor(
@@ -143,133 +101,25 @@ export class Model {
 	) {
 		Workspace.onDidChangeWorkspaceFolders(this.onDidChangeWorkspaceFolders, this, this.disposables);
 		Window.onDidChangeVisibleTextEditors(this.onDidChangeVisibleTextEditors, this, this.disposables);
-		this.statusBarItem = new WatStatusBarItem()
+		Workspace.onDidChangeConfiguration(this.onDidChangeConfiguration, this, this.disposables);
+
+		const fsWatcher = Workspace.createFileSystemWatcher('**/*');
+		this.disposables.push(fsWatcher);
+
+		const onWorkspaceChange = anyEvent(fsWatcher.onDidChange, fsWatcher.onDidCreate, fsWatcher.onDidDelete);
+		const onWatchedFileChange = filterEvent(onWorkspaceChange, uri => this.checkifInWorkspace(uri));
+		onWatchedFileChange(this.onPossibleWatchedFileChange, this, this.disposables);
 
 
-		this.onDidOpenTocFile(e => this.tocOutlineProvider.addTocOutline(e))
-
-		this.setState('uninitialized');
-
-		if (!Workspace.workspaceFolders) {
-			this.statusBarItem.text = '$(error) No Workspace Opened'
-		} else {
-			this.initialWorkspaceScan()
-			const view = Window.createTreeView('watTree', { treeDataProvider: this.tocOutlineProvider });
-			Commands.registerCommand('watTree.refresh', () => this.tocOutlineProvider.refresh());
-			Commands.registerCommand('watTree.openFile', (s) => this.tocOutlineProvider.openFile(s));
-			//Commands.registerCommand('watTree.refreshNode', offset => this.tocOutlineProvider.refresh(offset));
-			//Commands.registerCommand('watTree.renameNode', offset => this.tocOutlineProvider.rename(offset));
-			context.subscriptions.push(view);
-			this.tocOutlineProvider.refresh()
-		}
-	}
-	private async doInitialScan(): Promise<void> {
-		await Promise.all([
-			this.onDidChangeWorkspaceFolders({ added: Workspace.workspaceFolders || [], removed: [] }),
-			this.onDidChangeVisibleTextEditors(Window.visibleTextEditors),
-			//this.scanWorkspaceFolders()
-		]);
-	}
-
-	private async parseToc(uri: Uri, refresh?: boolean) {
-		const currentToc = this.getToc(uri)
-		if (currentToc) {
-			if (refresh) {
-				currentToc.dispose()
-			} else {
-				return
-			}
-		}
-
-		try {
-
-			const tocOutline = new TocOutline(uri, (await Workspace.fs.readFile(uri)).toString())
-			this.outputChannel.appendLine(`parseToc: ${tocOutline.uri.fsPath}`, 'model.ts');
-
-			const dispose = () => {
-				this.parsedTocs = this.parsedTocs.filter(e => e !== openToc);
-				this._onDidCloseTocFile.fire(tocOutline.uri);
-			};
-
-			const openToc: ParsedToc = { tocOutline: tocOutline, dispose };
-			this.parsedTocs.push(openToc);
-			this._onDidOpenTocFile.fire(openToc.tocOutline);
-			this.addTocFile(openToc.tocOutline)
-			this.tocOutlineProvider.refresh()
-			//tocOutline.status(); // do not await this, we want SCM to know about the repo asap */
-		} catch (ex) {
-
-		}
-	}
-
-	/* async openToc(tocPath: string): Promise<void> {
-		if (this.getToc(tocPath)) {
-			return;
-		}
-		// TODO: Add config
-
-		if (!Workspace.isTrusted) {
-			// TODO: Add error for untrusted Workspace.
-			try {
-
-			} catch {
-
-			}
-		}
-
-		try {
-			const tocRoot = Uri.file(tocPath).fsPath;
-
-			if (this.getToc(tocRoot)) {
-				return;
-			}
-			const tocFileContents = await Promise.resolve(Workspace.fs.readFile(Uri.file(tocPath)).then(v => {
-				return v.toString();
-			}));
-			const tocOutline = new TocOutline(Uri.file(tocPath), tocFileContents);
-
-			this.open(tocOutline);
-			//tocOutline.status(); // do not await this, we want SCM to know about the repo asap
-		} catch (ex) {
-
-		}
-	} */
-
-	private open(toc: TocOutline): void {
-		this.outputChannel.appendLine(`Open Toc: ${toc.uri.fsPath}`, 'model.ts');
-
-		const dispose = () => {
-			this.parsedTocs = this.parsedTocs.filter(e => e !== openToc);
-			this._onDidCloseTocFile.fire(toc.uri);
-		};
-
-		const openToc: ParsedToc = { tocOutline: toc, dispose };
-		this.parsedTocs.push(openToc);
-		this._onDidOpenTocFile.fire(openToc.tocOutline);
-		this.addTocFile(openToc.tocOutline)
+		this.initialWorkspaceScan()
+		const view = Window.createTreeView('watTree', { treeDataProvider: this.tocOutlineProvider });
+		Commands.registerCommand('watTree.refresh', () => this.tocOutlineProvider.refresh());
+		Commands.registerCommand('watTree.openFile', (s) => this.tocOutlineProvider.openFile(s));
+		Commands.registerCommand('watTree.refreshNode', offset => this.tocOutlineProvider.refresh(offset));
+		//Commands.registerCommand('watTree.renameNode', offset => this.tocOutlineProvider.rename(offset));
+		context.subscriptions.push(view);
 		this.tocOutlineProvider.refresh()
-	}
 
-	private getToc(path: string): TocOutline | undefined;
-	private getToc(resource: Uri): TocOutline | undefined;
-	private getToc(hint: any): TocOutline | undefined {
-		const tocOutline = this.getParsedToc(hint);
-		return tocOutline && tocOutline.tocOutline;
-	}
-
-	private getParsedToc(path: string): ParsedToc | undefined;
-	private getParsedToc(resource: Uri): ParsedToc | undefined;
-	private getParsedToc(hint: any): ParsedToc | undefined {
-		if (!hint) {
-			return undefined;
-		}
-		if (typeof hint === 'string') {
-			hint = Uri.file(hint);
-		}
-		if (hint instanceof Uri) {
-			return this.parsedTocs.filter(r => r.tocOutline.uri === hint)[0];
-		}
-		return undefined;
 	}
 
 	dispose(): void {
